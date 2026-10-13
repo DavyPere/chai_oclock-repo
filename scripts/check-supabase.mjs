@@ -8,22 +8,23 @@ if (!url || !key) {
   process.exit(1);
 }
 
-const expectedPrefix = "sb_publishable_";
-const formatLooksValid =
-  key.startsWith(expectedPrefix) &&
-  key.length === 46 &&
+const isModernPublishable =
+  key.startsWith("sb_publishable_") &&
   !/\s/.test(key);
 
-if (!formatLooksValid) {
-  console.error("Stored GitHub secret does not match the expected Supabase publishable-key format.");
+const isLegacyAnonJwt =
+  key.startsWith("eyJ") &&
+  key.split(".").length === 3 &&
+  !/\s/.test(key);
+
+if (!isModernPublishable && !isLegacyAnonJwt) {
+  console.error("Stored GitHub secret is not a recognized Supabase public client key.");
   process.exit(1);
 }
 
-// Use a normal Data API resource rather than /rest/v1/ root.
-// The root schema endpoint requires a server-side secret key.
-// poster_templates is RLS-protected, so an unauthenticated publishable-key
-// request may return an empty array; HTTP 200 still proves the client key,
-// API gateway, project, and Data API are connected correctly.
+// Query a normal RLS-protected table. A public client key may receive an
+// empty array because RLS blocks anonymous rows; HTTP 200 still proves that
+// GitHub Actions can authenticate to this Supabase project's Data API.
 const endpoint =
   `${url}/rest/v1/poster_templates?select=id&limit=1`;
 
@@ -41,5 +42,5 @@ if (!res.ok) {
   process.exit(1);
 }
 
-console.log("Supabase Data API is reachable with the configured publishable key.");
+console.log("Supabase Data API is reachable with the configured public client key.");
 console.log("Project ref: jrdtelveihwusdtpgnks");
