@@ -165,3 +165,29 @@ The intake transaction:
 7. creates no render job.
 
 Only a later human approval through the review dashboard can create the Canva render job.
+
+
+## Researcher + Editor engine
+
+The scheduled Researcher + Editor workflow is deliberately source-first and human-gated.
+
+The Researcher uses the OpenAI Responses API with web search to discover up to six recent public-interest stories per run. Geographic priority is:
+
+1. Kajiado North
+2. Kajiado County
+3. Kenya-wide stories only when materially important
+
+The Researcher stores every new candidate with:
+
+- source URLs and verification notes,
+- category and location,
+- freshness, locality, and importance scores,
+- whether the story is sensitive or requires corroboration.
+
+Politics, governance, elections, public safety, allegations, and other sensitive stories require at least two independent source domains before the Editor may prepare a draft.
+
+The Editor performs a second verification pass and either holds the story or creates a neutral factual content package. Editor packages always enter `review` through the existing sourced intake RPC. The worker cannot approve, render, stage, or publish a package.
+
+The scheduled workflow is `.github/workflows/research-editor.yml` and runs every two hours when `OPENAI_API_KEY` is configured in GitHub Actions secrets. The default model is `gpt-6-luna`; it can be changed through the workflow environment.
+
+No political persuasion, campaign strategy, voter targeting, endorsements, opposition messaging, or automatic publishing is part of this pipeline.
