@@ -115,3 +115,22 @@ The **Canva OAuth Setup** workflow then:
 Open that URL and approve Canva access. Canva redirects to the deployed `canva-oauth-callback` Edge Function, which exchanges the authorization code and stores the rotating refresh token in Supabase Vault automatically.
 
 After OAuth succeeds, the render worker can use the Vault-backed credentials without requiring a permanent Canva access token.
+
+
+## Mobile review dashboard
+
+The private mobile review page is deployed at:
+
+`https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/review-dashboard`
+
+A browser is authorized through a one-time setup link. The setup token is stored only as a SHA-256 hash, expires automatically, and can be used once. A successful setup creates a 30-day HttpOnly, Secure, SameSite=Strict browser session.
+
+The dashboard shows packages in `review` or `approved` state, including:
+
+- headline and poster copy,
+- structured render fields,
+- caption,
+- current Canva render status,
+- the finished poster preview when available.
+
+Approve and reject actions call the same audited `review_content_package` database function used by the API. The dashboard cannot publish content.
