@@ -13,6 +13,7 @@ const supabase = createClient(url, key, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
 
+// Connectivity check used by GitHub Actions and local development.
 // This verifies that the Supabase API is reachable without assuming public
 // table access. Chai O'Clock's tables intentionally use RLS and may return
 // permission errors until an authenticated policy is added.
