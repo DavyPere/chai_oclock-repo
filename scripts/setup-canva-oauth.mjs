@@ -58,6 +58,7 @@ const params = new URLSearchParams({
   scope: [
     "design:content:read",
     "design:content:write",
+    "design:meta:read",
     "asset:read",
     "asset:write",
   ].join(" "),
