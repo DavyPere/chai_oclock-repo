@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { createClient } from "@supabase/supabase-js";
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -9,14 +8,9 @@ if (!url || !key) {
   process.exit(1);
 }
 
-const supabase = createClient(url, key, {
-  auth: { persistSession: false, autoRefreshToken: false }
-});
-
 // Connectivity check used by GitHub Actions and local development.
-// This verifies that the Supabase API is reachable without assuming public
-// table access. Chai O'Clock's tables intentionally use RLS and may return
-// permission errors until an authenticated policy is added.
+// This verifies the Supabase REST API is reachable with the configured
+// publishable key without assuming public table access.
 const res = await fetch(`${url}/rest/v1/`, {
   headers: {
     apikey: key,
