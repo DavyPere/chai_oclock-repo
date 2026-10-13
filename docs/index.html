@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f4f2ed">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://jrdtelveihwusdtpgnks.supabase.co data:; connect-src https://jrdtelveihwusdtpgnks.supabase.co; style-src 'unsafe-inline'; script-src 'unsafe-inline'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'">
+  <title>Chai O'Clock Review</title>
+  <style>
+    :root{
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      color:#171717;background:#f4f2ed
+    }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:#f4f2ed}
+    header{position:sticky;top:0;z-index:10;background:rgba(244,242,237,.94);backdrop-filter:blur(12px);border-bottom:1px solid #dedbd2;padding:15px 16px}
+    .top{max-width:820px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:14px}
+    .brand{font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:24px}
+    .sub{font-size:12px;color:#6a665f;margin-top:3px}
+    main{max-width:820px;margin:auto;padding:18px 14px 80px}
+    button{font:inherit;border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .small{padding:8px 10px;background:#e8e5dd;color:#34312d}
+    .card{background:#fff;border:1px solid #dfdbd2;border-radius:20px;overflow:hidden;margin-bottom:16px;box-shadow:0 4px 18px rgba(0,0,0,.035)}
+    .body{padding:18px}
+    .meta{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+    .pill{font-size:11px;text-transform:uppercase;letter-spacing:.07em;background:#efede7;color:#59564f;border-radius:999px;padding:6px 9px}
+    .review{background:#fff1c7;color:#6a4c00}
+    .approved{background:#dff2e4;color:#1d5b2b}
+    h2{font-family:Georgia,serif;font-size:25px;line-height:1.08;margin:8px 0}
+    .poster{font-size:15px;color:#504d47;margin-bottom:14px}
+    .fields{border-top:1px solid #eeeae2;border-bottom:1px solid #eeeae2;padding:10px 0;margin:12px 0}
+    .field{display:grid;grid-template-columns:112px 1fr;gap:9px;padding:5px 0;font-size:13px}
+    .field strong{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#777269}
+    .caption{white-space:pre-wrap;line-height:1.5;font-size:14px;background:#faf9f6;border-radius:12px;padding:12px}
+    .status{font-size:12px;color:#706b63;margin-top:10px}
+    .errorText{color:#8a2929}
+    .actions{display:flex;gap:10px;padding:0 18px 18px}
+    .approve{background:#171717;color:#fff;flex:1}
+    .reject{background:#efece5;color:#6a302b;flex:1}
+    .note{width:100%;border:1px solid #ddd8ce;border-radius:12px;padding:11px 12px;font:inherit;margin-top:12px}
+    .preview{display:block;width:100%;max-height:620px;object-fit:contain;background:#ece9e2}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;color:#656159;font-size:13px}
+    .empty,.gate{background:#fff;border:1px solid #dfdbd2;border-radius:20px;padding:32px 24px;text-align:center}
+    .gate h1{font-family:Georgia,serif;font-style:italic;margin-top:0}
+    .gate p{color:#69655e;line-height:1.5}
+    .gate button{background:#171717;color:#fff;width:100%;margin-top:8px}
+    .link{display:inline-block;margin-top:10px;color:#171717}
+    .hidden{display:none!important}
+    @media(max-width:520px){
+      h2{font-size:22px}
+      .field{grid-template-columns:92px 1fr}
+      .actions{position:sticky;bottom:0;background:#fff;padding-top:12px;border-top:1px solid #eeeae2}
+    }
+  </style>
+</head>
+<body>
+<header id="appHeader" class="hidden">
+  <div class="top">
+    <div><div class="brand">Chai O'Clock</div><div class="sub">Review & approval</div></div>
+    <button class="small" onclick="logout()">Log out</button>
+  </div>
+</header>
+
+<main>
+  <section id="setupGate" class="gate hidden">
+    <h1>Chai O'Clock</h1>
+    <h2>Authorize this browser</h2>
+    <p>This one-time link is valid for setup. Press the button below to authorize this browser for the private review dashboard.</p>
+    <button id="setupButton" onclick="authorizeBrowser()">Authorize this browser</button>
+    <p id="setupMessage"></p>
+  </section>
+
+  <section id="loginGate" class="gate hidden">
+    <h1>Chai O'Clock</h1>
+    <h2>Private review page</h2>
+    <p>This browser is not authorized. Open a current one-time setup link to connect it.</p>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="toolbar">
+      <span id="summary">Loading…</span>
+      <button class="small" onclick="loadQueue()">Refresh</button>
+    </div>
+    <div id="queue"></div>
+  </section>
+</main>
+
+<script>
+const API = "https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/review-dashboard-api";
+const STORAGE_KEY = "chai_oclock_review_session_v3";
+let pollTimer = null;
+
+const esc = (s = "") => String(s).replace(/[&<>"']/g, c => ({
+  "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+}[c]));
+
+function setupTokenFromUrl() {
+  return new URLSearchParams(location.search).get("setup");
+}
+
+function sessionToken() {
+  return localStorage.getItem(STORAGE_KEY);
+}
+
+function show(id) {
+  for (const el of ["setupGate","loginGate","app","appHeader"]) {
+    document.getElementById(el).classList.add("hidden");
+  }
+  document.getElementById(id).classList.remove("hidden");
+  if (id === "app") document.getElementById("appHeader").classList.remove("hidden");
+}
+
+async function api(action, options = {}) {
+  const headers = {
+    ...(options.body ? {"content-type":"application/json"} : {}),
+    ...(sessionToken() ? {"x-chai-dashboard-session":sessionToken()} : {}),
+    ...(options.headers || {})
+  };
+
+  const res = await fetch(API + "?action=" + encodeURIComponent(action), {
+    ...options,
+    headers,
+    cache: "no-store"
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401 && action !== "setup") {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  return {res, body};
+}
+
+async function authorizeBrowser() {
+  const token = setupTokenFromUrl();
+  const button = document.getElementById("setupButton");
+  const message = document.getElementById("setupMessage");
+  if (!token) return;
+
+  button.disabled = true;
+  message.textContent = "Authorizing…";
+
+  const {res, body} = await api("setup", {
+    method:"POST",
+    body:JSON.stringify({setup_token:token})
+  });
+
+  if (!res.ok || !body.session_token) {
+    button.disabled = false;
+    message.textContent = body.error === "invalid_or_used_setup_token"
+      ? "This setup link is invalid, expired, or has already been used."
+      : "Authorization failed. Please try again.";
+    return;
+  }
+
+  localStorage.setItem(STORAGE_KEY, body.session_token);
+  history.replaceState({}, "", location.pathname);
+  await startApp();
+}
+
+function renderStatus(p) {
+  const j = p.render_job;
+  if (p.status === "review") return "Awaiting your decision";
+  if (!j) return "Approved · waiting for render job";
+  if (j.status === "queued") return "Approved · queued for Canva";
+  if (j.status === "rendering") return "Approved · rendering in Canva";
+  if (j.status === "rendered") return "Rendered · ready for staging";
+  if (j.status === "failed") return "Render failed · " + (j.error_message || "needs attention");
+  return "Approved · " + j.status;
+}
+
+function card(p) {
+  const payload = p.render_payload || {};
+  const fields = Object.entries(payload)
+    .filter(([,v]) => typeof v === "string" && v.trim())
+    .map(([k,v]) => '<div class="field"><strong>'+esc(k.replaceAll("_"," "))+'</strong><span>'+esc(v)+'</span></div>')
+    .join("");
+
+  const image = p.image_asset?.signed_url
+    ? '<img class="preview" src="'+esc(p.image_asset.signed_url)+'" alt="Rendered poster preview">'
+    : "";
+
+  const canva = p.render_job?.canva_view_url
+    ? '<a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(p.render_job.canva_view_url)+'">Open rendered design in Canva</a>'
+    : "";
+
+  const statusClass = p.render_job?.status === "failed" ? " errorText" : "";
+
+  const actions = p.status === "review"
+    ? '<div class="body" style="padding-top:0"><input class="note" id="note-'+p.id+'" placeholder="Optional review note"></div><div class="actions"><button class="reject" onclick="decide(\''+p.id+'\',\'reject\')">Reject</button><button class="approve" onclick="decide(\''+p.id+'\',\'approve\')">Approve</button></div>'
+    : '<div class="actions"><button class="reject" onclick="decide(\''+p.id+'\',\'reject\')">Remove from approval</button></div>';
+
+  return '<article class="card">'+image+'<div class="body"><div class="meta"><span class="pill '+esc(p.status)+'">'+esc(p.status)+'</span><span class="pill">'+esc(p.edition)+'</span><span class="pill">'+esc(p.content_type)+'</span></div><h2>'+esc(p.headline || "Untitled package")+'</h2><div class="poster">'+esc(p.poster_text || "")+'</div>'+(fields?'<div class="fields">'+fields+'</div>':"")+'<div class="caption">'+esc(p.caption)+'</div><div class="status'+statusClass+'">'+esc(renderStatus(p))+'</div>'+canva+'</div>'+actions+'</article>';
+}
+
+async function loadQueue() {
+  clearTimeout(pollTimer);
+  const {res, body} = await api("queue");
+
+  if (res.status === 401) {
+    show("loginGate");
+    return;
+  }
+
+  if (!res.ok) {
+    document.getElementById("summary").textContent = "Unable to load";
+    document.getElementById("queue").innerHTML =
+      '<div class="empty errorText">'+esc(body.message || body.error || "Unable to load queue")+'</div>';
+    return;
+  }
+
+  const items = body.items || [];
+  const waiting = items.filter(x => x.status === "review").length;
+  const approved = items.filter(x => x.status === "approved").length;
+  document.getElementById("summary").textContent = waiting+" waiting · "+approved+" approved";
+  document.getElementById("queue").innerHTML = items.length
+    ? items.map(card).join("")
+    : '<div class="empty"><h2>Nothing waiting</h2><p>Prepared packages will appear here for review.</p></div>';
+
+  if (items.some(x => ["queued","rendering"].includes(x.render_job?.status))) {
+    pollTimer = setTimeout(loadQueue, 7000);
+  }
+}
+
+async function decide(id, decision) {
+  const note = document.getElementById("note-"+id)?.value || null;
+  const message = decision === "approve"
+    ? "Approve this package and send it to rendering?"
+    : "Reject this package?";
+  if (!confirm(message)) return;
+
+  const {res, body} = await api("decision", {
+    method:"POST",
+    body:JSON.stringify({content_package_id:id,decision,note})
+  });
+
+  if (!res.ok) {
+    alert(body.message || body.error || "Action failed");
+    return;
+  }
+
+  await loadQueue();
+}
+
+async function logout() {
+  if (sessionToken()) {
+    await api("logout", {method:"POST"});
+  }
+  localStorage.removeItem(STORAGE_KEY);
+  show("loginGate");
+}
+
+async function startApp() {
+  show("app");
+  await loadQueue();
+}
+
+(async function init() {
+  const setup = setupTokenFromUrl();
+  if (sessionToken()) {
+    await startApp();
+    return;
+  }
+  if (setup) {
+    show("setupGate");
+    return;
+  }
+  show("loginGate");
+})();
+</script>
+</body>
+</html>
