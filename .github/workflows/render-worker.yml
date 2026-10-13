@@ -22,25 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check Canva configuration
-        id: canva
-        shell: bash
-        run: |
-          if [ -n "$CANVA_ACCESS_TOKEN" ] || { [ -n "$CANVA_CLIENT_ID" ] && [ -n "$CANVA_CLIENT_SECRET" ]; }; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Canva OAuth is not configured yet; render worker skipped."
-          fi
-
       - uses: actions/setup-node@v4
-        if: steps.canva.outputs.configured == 'true'
         with:
           node-version: "22"
 
       - run: npm install
-        if: steps.canva.outputs.configured == 'true'
 
       - name: Render next approved package
-        if: steps.canva.outputs.configured == 'true'
         run: npm run render:one
