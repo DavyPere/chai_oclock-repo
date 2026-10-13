@@ -1,0 +1,30 @@
+name: Review Content HTTP Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/test-review-http.mjs"
+      - "supabase/functions/review-content/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/review-http-integration.yml"
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://jrdtelveihwusdtpgnks.supabase.co
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm install
+
+      - name: Run real HTTP approval test
+        run: npm run test:review-http
