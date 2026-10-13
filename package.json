@@ -1,0 +1,12 @@
+{
+  "name": "chai-oclock",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check:supabase": "node scripts/check-supabase.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.0",
+    "dotenv": "^16.4.7"
+  }
+}
