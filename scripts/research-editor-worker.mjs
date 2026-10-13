@@ -420,7 +420,7 @@ async function insertCandidate(runId, story, researchResponseId) {
       }
     )
     .select(
-      "id,status,fingerprint,title,summary,why_it_matters,category,location,published_at,locality_score,importance_score,freshness_score,sensitive_topic,requires_corroboration,sources,content_package_id"
+      "id,research_run_id,status,fingerprint,title,summary,why_it_matters,category,location,published_at,locality_score,importance_score,freshness_score,sensitive_topic,requires_corroboration,sources,content_package_id,model_metadata"
     )
     .maybeSingle();
 
@@ -468,7 +468,13 @@ async function submitDraft(candidate, story, edited) {
     "submit_content_package",
     {
       p_edition:
-        new Date().getUTCHours() < 13 ? "morning" : "evening",
+        Number(new Intl.DateTimeFormat("en-GB", {
+          timeZone: "Africa/Nairobi",
+          hour: "2-digit",
+          hourCycle: "h23",
+        }).format(new Date())) < 13
+          ? "morning"
+          : "evening",
       p_content_type: "news_update",
       p_headline: draft.headline,
       p_poster_text: draft.poster_text,
