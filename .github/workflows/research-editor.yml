@@ -7,8 +7,6 @@ on:
     paths:
       - "scripts/research-editor-worker.mjs"
       - ".github/workflows/research-editor.yml"
-  schedule:
-    - cron: "15 */2 * * *"
 
 concurrency:
   group: chai-oclock-research-editor
