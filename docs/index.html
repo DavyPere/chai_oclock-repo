@@ -184,13 +184,26 @@ function card(p) {
     ? '<a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(p.render_job.canva_view_url)+'">Open rendered design in Canva</a>'
     : "";
 
+  const sources = (p.sources || []).length
+    ? '<div class="fields"><div class="field"><strong>Sources</strong><span>' +
+      (p.sources || []).map((s) => {
+        const label = esc(s.source_title || s.source_reference || s.source_url || "Source");
+        const meta = esc((s.source_type || "source") + " · " + (s.verification_status || "unverified"));
+        const linked = s.source_url
+          ? '<a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(s.source_url)+'">'+label+'</a>'
+          : label;
+        return '<div>'+linked+'<div class="sub">'+meta+'</div></div>';
+      }).join('<br>') +
+      '</span></div></div>'
+    : '<div class="fields"><div class="field"><strong>Sources</strong><span class="errorText">No source attached</span></div></div>';
+
   const statusClass = p.render_job?.status === "failed" ? " errorText" : "";
 
   const actions = p.status === "review"
     ? '<div class="body" style="padding-top:0"><input class="note" id="note-'+p.id+'" placeholder="Optional review note"></div><div class="actions"><button class="reject" onclick="decide(\''+p.id+'\',\'reject\')">Reject</button><button class="approve" onclick="decide(\''+p.id+'\',\'approve\')">Approve</button></div>'
     : '<div class="actions"><button class="reject" onclick="decide(\''+p.id+'\',\'reject\')">Remove from approval</button></div>';
 
-  return '<article class="card">'+image+'<div class="body"><div class="meta"><span class="pill '+esc(p.status)+'">'+esc(p.status)+'</span><span class="pill">'+esc(p.edition)+'</span><span class="pill">'+esc(p.content_type)+'</span></div><h2>'+esc(p.headline || "Untitled package")+'</h2><div class="poster">'+esc(p.poster_text || "")+'</div>'+(fields?'<div class="fields">'+fields+'</div>':"")+'<div class="caption">'+esc(p.caption)+'</div><div class="status'+statusClass+'">'+esc(renderStatus(p))+'</div>'+canva+'</div>'+actions+'</article>';
+  return '<article class="card">'+image+'<div class="body"><div class="meta"><span class="pill '+esc(p.status)+'">'+esc(p.status)+'</span><span class="pill">'+esc(p.edition)+'</span><span class="pill">'+esc(p.content_type)+'</span></div><h2>'+esc(p.headline || "Untitled package")+'</h2><div class="poster">'+esc(p.poster_text || "")+'</div>'+(fields?'<div class="fields">'+fields+'</div>':"")+'<div class="caption">'+esc(p.caption)+'</div>'+sources+'<div class="status'+statusClass+'">'+esc(renderStatus(p))+'</div>'+canva+'</div>'+actions+'</article>';
 }
 
 async function loadQueue() {
