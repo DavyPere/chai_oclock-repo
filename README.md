@@ -84,3 +84,34 @@ For short-lived testing only, `CANVA_ACCESS_TOKEN` can be supplied instead of th
 The repository includes `supabase/config.toml`.
 
 `supabase link --project-ref jrdtelveihwusdtpgnks`
+
+
+## One-click Canva OAuth connection
+
+The preferred production setup uses Canva's Authorization Code flow with PKCE.
+
+In Canva Developer Portal, create an integration and configure the redirect URL exactly as:
+
+`https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/canva-oauth-callback`
+
+Enable these scopes:
+
+- `design:content:read`
+- `design:content:write`
+- `asset:read`
+- `asset:write`
+
+Add the Canva integration credentials to GitHub repository secrets:
+
+- `CANVA_CLIENT_ID`
+- `CANVA_CLIENT_SECRET`
+
+The **Canva OAuth Setup** workflow then:
+
+1. stores the client credentials in Supabase Vault,
+2. creates a 15-minute PKCE session,
+3. prints a one-time Canva authorization URL.
+
+Open that URL and approve Canva access. Canva redirects to the deployed `canva-oauth-callback` Edge Function, which exchanges the authorization code and stores the rotating refresh token in Supabase Vault automatically.
+
+After OAuth succeeds, the render worker can use the Vault-backed credentials without requiring a permanent Canva access token.
