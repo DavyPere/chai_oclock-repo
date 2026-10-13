@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check:supabase": "node scripts/check-supabase.mjs"
+    "check:supabase": "node scripts/check-supabase.mjs",
+    "test:review-http": "node scripts/test-review-http.mjs",
+    "render:one": "node scripts/render-worker.mjs",
+    "canva:bootstrap-token": "node scripts/bootstrap-canva-refresh-token.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
