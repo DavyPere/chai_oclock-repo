@@ -1,0 +1,26 @@
+name: Canva Configuration Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/canva-config-check.yml"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      CANVA_CLIENT_ID: ${{ secrets.CANVA_CLIENT_ID }}
+      CANVA_CLIENT_SECRET: ${{ secrets.CANVA_CLIENT_SECRET }}
+      CANVA_ACCESS_TOKEN: ${{ secrets.CANVA_ACCESS_TOKEN }}
+      CANVA_REFRESH_TOKEN_BOOTSTRAP: ${{ secrets.CANVA_REFRESH_TOKEN_BOOTSTRAP }}
+
+    steps:
+      - name: Check Canva secret presence safely
+        shell: bash
+        run: |
+          echo "CANVA_CLIENT_ID_present=$([ -n "$CANVA_CLIENT_ID" ] && echo yes || echo no)"
+          echo "CANVA_CLIENT_SECRET_present=$([ -n "$CANVA_CLIENT_SECRET" ] && echo yes || echo no)"
+          echo "CANVA_ACCESS_TOKEN_present=$([ -n "$CANVA_ACCESS_TOKEN" ] && echo yes || echo no)"
+          echo "CANVA_REFRESH_TOKEN_BOOTSTRAP_present=$([ -n "$CANVA_REFRESH_TOKEN_BOOTSTRAP" ] && echo yes || echo no)"
