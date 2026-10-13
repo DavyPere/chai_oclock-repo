@@ -42,18 +42,34 @@ async function pollJob(path, token, initialJob, timeoutMs = 120000) {
   return job;
 }
 
+async function getOAuthCredentials(supabase) {
+  const envClientId = process.env.CANVA_CLIENT_ID?.trim();
+  const envClientSecret = process.env.CANVA_CLIENT_SECRET?.trim();
+
+  if (envClientId && envClientSecret) {
+    return { clientId: envClientId, clientSecret: envClientSecret };
+  }
+
+  const { data, error } = await supabase.rpc("get_canva_oauth_credentials");
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row?.client_id || !row?.client_secret) {
+    throw new Error("Canva OAuth client credentials are not stored in Supabase Vault.");
+  }
+
+  return {
+    clientId: row.client_id,
+    clientSecret: row.client_secret,
+  };
+}
+
 export async function getCanvaAccessToken(supabase) {
   if (process.env.CANVA_ACCESS_TOKEN) {
     return process.env.CANVA_ACCESS_TOKEN.trim();
   }
 
-  const clientId = process.env.CANVA_CLIENT_ID;
-  const clientSecret = process.env.CANVA_CLIENT_SECRET;
-  if (!clientId || !clientSecret) {
-    throw new Error(
-      "Canva is not configured. Set CANVA_ACCESS_TOKEN, or configure CANVA_CLIENT_ID and CANVA_CLIENT_SECRET with a refresh token in Supabase Vault."
-    );
-  }
+  const { clientId, clientSecret } = await getOAuthCredentials(supabase);
 
   const { data: refreshToken, error: readError } = await supabase.rpc(
     "get_canva_refresh_token"

@@ -1,0 +1,44 @@
+name: Canva OAuth Setup
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/canva-oauth-setup.yml"
+      - "scripts/setup-canva-oauth.mjs"
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://jrdtelveihwusdtpgnks.supabase.co
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      CANVA_CLIENT_ID: ${{ secrets.CANVA_CLIENT_ID }}
+      CANVA_CLIENT_SECRET: ${{ secrets.CANVA_CLIENT_SECRET }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Canva credentials
+        id: canva
+        shell: bash
+        run: |
+          if [ -n "$CANVA_CLIENT_ID" ] && [ -n "$CANVA_CLIENT_SECRET" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Canva client credentials are not configured yet."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.canva.outputs.configured == 'true'
+        with:
+          node-version: "22"
+
+      - run: npm install
+        if: steps.canva.outputs.configured == 'true'
+
+      - name: Store credentials and generate Canva authorization URL
+        if: steps.canva.outputs.configured == 'true'
+        run: node scripts/setup-canva-oauth.mjs
