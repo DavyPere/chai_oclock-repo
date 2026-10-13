@@ -2,6 +2,12 @@ name: Chai OClock Render Worker
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/render-worker.mjs"
+      - "src/lib/canva-api.mjs"
+      - ".github/workflows/render-worker.yml"
   schedule:
     - cron: "*/10 * * * *"
 
