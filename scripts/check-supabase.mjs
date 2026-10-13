@@ -8,9 +8,22 @@ if (!url || !key) {
   process.exit(1);
 }
 
+const expectedPrefix = "sb_publishable_";
+const formatLooksValid =
+  key.startsWith(expectedPrefix) &&
+  key.length === 46 &&
+  !/\s/.test(key);
+
+if (!formatLooksValid) {
+  console.error("Stored GitHub secret does not match the expected Supabase publishable-key format.");
+  console.error(`Starts with sb_publishable_: ${key.startsWith(expectedPrefix)}`);
+  console.error(`Length is 46 characters: ${key.length === 46}`);
+  console.error(`Contains whitespace: ${/\s/.test(key)}`);
+  process.exit(1);
+}
+
 // Connectivity check used by GitHub Actions and local development.
 // Modern Supabase publishable keys are sent via the apikey header.
-// Authorization is reserved for a user access token when one exists.
 const res = await fetch(`${url}/rest/v1/`, {
   headers: {
     apikey: key
