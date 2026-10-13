@@ -9,12 +9,11 @@ if (!url || !key) {
 }
 
 // Connectivity check used by GitHub Actions and local development.
-// This verifies the Supabase REST API is reachable with the configured
-// publishable key without assuming public table access.
+// Modern Supabase publishable keys are sent via the apikey header.
+// Authorization is reserved for a user access token when one exists.
 const res = await fetch(`${url}/rest/v1/`, {
   headers: {
-    apikey: key,
-    Authorization: `Bearer ${key}`
+    apikey: key
   }
 });
 
