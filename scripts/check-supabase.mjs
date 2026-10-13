@@ -1,4 +1,5 @@
 import "dotenv/config";
+import crypto from "node:crypto";
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -16,14 +17,18 @@ const formatLooksValid =
 
 if (!formatLooksValid) {
   console.error("Stored GitHub secret does not match the expected Supabase publishable-key format.");
-  console.error(`Starts with sb_publishable_: ${key.startsWith(expectedPrefix)}`);
-  console.error(`Length is 46 characters: ${key.length === 46}`);
-  console.error(`Contains whitespace: ${/\s/.test(key)}`);
+  process.exit(1);
+}
+
+const fingerprint = crypto.createHash("sha256").update(key).digest("hex");
+const expectedFingerprint = "a7d49c75630e0192592adb2a19a4ff9983714f1678b8dc5f8352d3633e427645";
+
+if (fingerprint !== expectedFingerprint) {
+  console.error("Stored GitHub secret does not match the currently active publishable key for this Supabase project.");
   process.exit(1);
 }
 
 // Connectivity check used by GitHub Actions and local development.
-// Modern Supabase publishable keys are sent via the apikey header.
 const res = await fetch(`${url}/rest/v1/`, {
   headers: {
     apikey: key
