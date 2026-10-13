@@ -137,7 +137,7 @@ async function queueData(supabase: ReturnType<typeof admin>) {
   const { data: packages, error } = await supabase
     .from("content_packages")
     .select(
-      "id,edition,content_type,headline,poster_text,caption,render_payload,status,approved_at,created_at,updated_at,image_asset_id",
+      "id,edition,content_type,headline,poster_text,caption,render_payload,status,approved_at,created_at,updated_at,image_asset_id,submitted_by,intake_metadata",
     )
     .in("status", ["review", "approved"])
     .order("created_at", { ascending: false })
@@ -171,6 +171,25 @@ async function queueData(supabase: ReturnType<typeof admin>) {
     }
   }
 
+  const sourcesByPackage = new Map<string, any[]>();
+  if (packageIds.length) {
+    const { data: sources, error: sourcesError } = await supabase
+      .from("content_package_sources")
+      .select(
+        "id,content_package_id,source_type,source_title,source_url,source_reference,published_at,verification_status,verification_notes,created_at",
+      )
+      .in("content_package_id", packageIds)
+      .order("created_at", { ascending: true });
+
+    if (sourcesError) throw sourcesError;
+
+    for (const source of sources || []) {
+      const list = sourcesByPackage.get(source.content_package_id) || [];
+      list.push(source);
+      sourcesByPackage.set(source.content_package_id, list);
+    }
+  }
+
   const assetById = new Map<string, any>();
   if (assetIds.length) {
     const { data: assets, error: assetsError } = await supabase
@@ -195,6 +214,7 @@ async function queueData(supabase: ReturnType<typeof admin>) {
   return (packages || []).map((pkg) => ({
     ...pkg,
     render_job: latestJobByPackage.get(pkg.id) || null,
+    sources: sourcesByPackage.get(pkg.id) || [],
     image_asset: pkg.image_asset_id
       ? assetById.get(pkg.image_asset_id) || null
       : null,
