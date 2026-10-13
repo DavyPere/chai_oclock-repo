@@ -134,3 +134,34 @@ The dashboard shows packages in `review` or `approved` state, including:
 - the finished poster preview when available.
 
 Approve and reject actions call the same audited `review_content_package` database function used by the API. The dashboard cannot publish content.
+
+
+## Sourced content intake
+
+Prepared content enters Chai O'Clock through the `submit-content` Edge Function.
+
+The endpoint accepts an authenticated `POST` using an enabled `sync_clients` key in the `x-chai-key` header. It always creates the package with `status = review`. It cannot approve, render, stage, or publish content.
+
+Required fields:
+
+- `edition`: `morning` or `evening`
+- `content_type`
+- `headline`
+- `caption`
+- `template_id`
+- `render_payload`
+- `sources`: at least one source
+
+Each source must include either `source_url` or `source_reference`. Supported source types include web, YouTube, government, first-party, document, social, system, and other.
+
+The intake transaction:
+
+1. validates the active poster template,
+2. checks all required Canva text fields,
+3. records the submitting client,
+4. stores package-level intake metadata,
+5. attaches the source trail,
+6. inserts the package into `review`,
+7. creates no render job.
+
+Only a later human approval through the review dashboard can create the Canva render job.
