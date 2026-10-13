@@ -7,7 +7,9 @@
     "test:review-http": "node scripts/test-review-http.mjs",
     "render:one": "node scripts/render-worker.mjs",
     "canva:bootstrap-token": "node scripts/bootstrap-canva-refresh-token.mjs",
-    "test:submit-http": "node scripts/test-submit-http.mjs"
+    "test:submit-http": "node scripts/test-submit-http.mjs",
+    "test:research-editor": "node scripts/test-research-editor.mjs",
+    "research:run": "node scripts/research-editor-worker.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",

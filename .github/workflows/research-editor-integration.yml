@@ -1,0 +1,33 @@
+name: Researcher Editor Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/test-research-editor.mjs"
+      - "scripts/research-editor-worker.mjs"
+      - "supabase/migrations/**"
+      - ".github/workflows/research-editor-integration.yml"
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://jrdtelveihwusdtpgnks.supabase.co
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm install
+
+      - name: Check worker syntax
+        run: node --check scripts/research-editor-worker.mjs
+
+      - name: Verify Researcher and Editor database handoff
+        run: npm run test:research-editor

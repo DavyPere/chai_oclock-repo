@@ -1,0 +1,47 @@
+name: Researcher + Editor
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 */2 * * *"
+
+concurrency:
+  group: chai-oclock-research-editor
+  cancel-in-progress: false
+
+jobs:
+  research-editor:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://jrdtelveihwusdtpgnks.supabase.co
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: gpt-6-luna
+      MAX_EDITOR_SUBMISSIONS: "3"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check AI configuration
+        id: config
+        shell: bash
+        run: |
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "OpenAI API key is configured."
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "OPENAI_API_KEY is not configured; scheduled research will be skipped."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.config.outputs.configured == 'true'
+        with:
+          node-version: "22"
+
+      - run: npm install
+        if: steps.config.outputs.configured == 'true'
+
+      - name: Research and prepare neutral review drafts
+        if: steps.config.outputs.configured == 'true'
+        run: node scripts/research-editor-worker.mjs
