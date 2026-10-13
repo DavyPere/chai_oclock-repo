@@ -2,6 +2,11 @@ name: Researcher + Editor
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/research-editor-worker.mjs"
+      - ".github/workflows/research-editor.yml"
   schedule:
     - cron: "15 */2 * * *"
 
