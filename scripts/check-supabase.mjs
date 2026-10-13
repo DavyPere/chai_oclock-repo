@@ -1,30 +1,43 @@
 import "dotenv/config";
 
 const url = process.env.SUPABASE_URL;
-const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+const rawKey = process.env.SUPABASE_PUBLISHABLE_KEY;
 
-if (!url || !key) {
+if (!url || !rawKey) {
   console.error("Missing SUPABASE_URL or SUPABASE_PUBLISHABLE_KEY.");
   process.exit(1);
 }
 
+const key = rawKey.trim();
+
+const diagnostics = {
+  length: key.length,
+  startsModernPublishable: key.startsWith("sb_publishable_"),
+  startsModernSecret: key.startsWith("sb_secret_"),
+  startsLegacyJwt: key.startsWith("eyJ"),
+  startsAssignment: key.startsWith("SUPABASE_PUBLISHABLE_KEY="),
+  wrappedInQuotes:
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'")),
+  containsWhitespace: /\s/.test(key)
+};
+
+console.log("Supabase secret shape:", JSON.stringify(diagnostics));
+
 const isModernPublishable =
-  key.startsWith("sb_publishable_") &&
-  !/\s/.test(key);
+  diagnostics.startsModernPublishable &&
+  !diagnostics.containsWhitespace;
 
 const isLegacyAnonJwt =
-  key.startsWith("eyJ") &&
+  diagnostics.startsLegacyJwt &&
   key.split(".").length === 3 &&
-  !/\s/.test(key);
+  !diagnostics.containsWhitespace;
 
 if (!isModernPublishable && !isLegacyAnonJwt) {
   console.error("Stored GitHub secret is not a recognized Supabase public client key.");
   process.exit(1);
 }
 
-// Query a normal RLS-protected table. A public client key may receive an
-// empty array because RLS blocks anonymous rows; HTTP 200 still proves that
-// GitHub Actions can authenticate to this Supabase project's Data API.
 const endpoint =
   `${url}/rest/v1/poster_templates?select=id&limit=1`;
 
