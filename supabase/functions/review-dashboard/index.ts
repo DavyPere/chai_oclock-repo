@@ -87,6 +87,24 @@ async function getSession(req: Request, supabase: ReturnType<typeof supabaseAdmi
   return { ...data, tokenHash: hash };
 }
 
+async function validSetupToken(
+  setupToken: string,
+  supabase: ReturnType<typeof supabaseAdmin>,
+) {
+  const hash = await sha256Hex(setupToken);
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from("dashboard_setup_tokens")
+    .select("id")
+    .eq("token_hash", hash)
+    .is("used_at", null)
+    .gt("expires_at", now)
+    .maybeSingle();
+
+  return !error && !!data;
+}
+
 async function establishSession(
   setupToken: string,
   supabase: ReturnType<typeof supabaseAdmin>,
@@ -336,6 +354,47 @@ Deno.serve(async (req: Request) => {
   const setup = url.searchParams.get("setup");
 
   if (req.method === "GET" && setup) {
+    const valid = await validSetupToken(setup, supabase);
+    if (!valid) {
+      return page(
+        401,
+        loginHtml.replace(
+          "Open a current one-time setup link to authorize this device.",
+          "This setup link is invalid, expired, or has already been used.",
+        ),
+      );
+    }
+
+    return page(
+      200,
+      `<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Authorize Chai O'Clock Review</title>
+  <style>
+    body{font-family:system-ui;background:#f4f2ed;margin:0;padding:60px 22px;color:#171717}
+    .card{max-width:520px;margin:auto;background:#fff;border:1px solid #ddd8cf;border-radius:20px;padding:28px}
+    h1{font-family:Georgia,serif;font-style:italic}
+    p{color:#6d6961;line-height:1.5}
+    button{width:100%;border:0;border-radius:12px;padding:14px 16px;background:#171717;color:#fff;font:inherit;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Chai O'Clock</h1>
+    <h2>Authorize this browser</h2>
+    <p>This one-time link is valid. Press the button below to sign this browser into the private review dashboard for 30 days.</p>
+    <form method="post">
+      <button type="submit">Authorize this browser</button>
+    </form>
+  </div>
+</body>
+</html>`
+    );
+  }
+
+  if (req.method === "POST" && setup) {
     const rawSession = await establishSession(setup, supabase);
     if (!rawSession) {
       return page(
@@ -348,11 +407,11 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(null, {
-      status: 302,
+      status: 303,
       headers: {
         location: url.origin + url.pathname,
         "set-cookie":
-          `${COOKIE}=${encodeURIComponent(rawSession)}; HttpOnly; Secure; SameSite=Strict; Path=${url.pathname}; Max-Age=${SESSION_SECONDS}`,
+          `${COOKIE}=${encodeURIComponent(rawSession)}; HttpOnly; Secure; SameSite=Lax; Path=${url.pathname}; Max-Age=${SESSION_SECONDS}`,
         "cache-control": "no-store",
       },
     });
@@ -415,7 +474,7 @@ Deno.serve(async (req: Request) => {
       { ok: true },
       {
         "set-cookie":
-          `${COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=${url.pathname}; Max-Age=0`,
+          `${COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=${url.pathname}; Max-Age=0`,
       },
     );
   }
