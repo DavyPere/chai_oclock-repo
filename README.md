@@ -191,3 +191,39 @@ The Editor performs a second verification pass and either holds the story or cre
 The scheduled workflow is `.github/workflows/research-editor.yml` and runs every two hours when `OPENAI_API_KEY` is configured in GitHub Actions secrets. The default model is `gpt-6-luna`; it can be changed through the workflow environment.
 
 No political persuasion, campaign strategy, voter targeting, endorsements, opposition messaging, or automatic publishing is part of this pipeline.
+
+
+## Field Reporting module
+
+Chai O'Clock Field Reporting is the factual activity-recording layer for visits, meetings, inspections, deliveries and community engagements.
+
+The permanent field report separates statements into five classes:
+
+- `observed`: something the reporting team directly saw,
+- `reported`: something a participant or stakeholder said,
+- `completed`: an action that actually happened,
+- `committed`: a promise or future action that is not yet complete,
+- `next_step`: an operational follow-up.
+
+These classes must not be collapsed. In particular, a `committed` item must never be represented as `completed` unless the underlying field report is updated with evidence of completion.
+
+Each report can also contain:
+
+- participants and stakeholders,
+- location, ward and constituency,
+- issue/follow-up records,
+- owners and due dates,
+- evidence links or references,
+- verification status.
+
+Issue states are:
+
+`reported → verified → action_required → in_progress → completed`
+
+and `follow_up_needed` is available when a completed or progressing issue requires another check.
+
+The mobile screen is `docs/field-reports.html` and shares the same private browser session as the review dashboard.
+
+Saving a field report does not create content. The explicit **Prepare for Approval** action deterministically creates a neutral review package from the recorded facts, labels facts by their reporting class, attaches field-report provenance, and leaves the package in `review`.
+
+Only the existing human approval action may create a Canva render job. Field Reporting does not publish content.
