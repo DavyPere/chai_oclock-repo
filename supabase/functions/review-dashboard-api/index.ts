@@ -380,7 +380,10 @@ Deno.serve(async (req: Request) => {
     } catch (error) {
       return json(req, 500, {
         error: "queue_failed",
-        message: error instanceof Error ? error.message : String(error),
+        message:
+          error instanceof Error
+            ? error.message
+            : JSON.stringify(error),
       });
     }
   }
@@ -576,7 +579,7 @@ Deno.serve(async (req: Request) => {
         .insert({
           storage_bucket: "source-media",
           storage_path: objectPath,
-          asset_type: "field_report_photo",
+          asset_type: "source_image",
           source: "field_report_upload",
           mime_type: upload.type,
           verification_status: "unverified",
