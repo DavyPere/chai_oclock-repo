@@ -221,6 +221,81 @@ async function queueData(supabase: ReturnType<typeof admin>) {
   }));
 }
 
+async function fieldReportsData(supabase: ReturnType<typeof admin>) {
+  const { data: reports, error } = await supabase
+    .from("field_reports")
+    .select(
+      "id,report_date,activity_type,activity_title,location_name,ward,constituency,participants,purpose,status,submitted_by,content_package_id,created_at,updated_at",
+    )
+    .order("report_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+
+  const ids = (reports || []).map((r) => r.id);
+  const entriesByReport = new Map<string, any[]>();
+  const issuesByReport = new Map<string, any[]>();
+  const evidenceByReport = new Map<string, any[]>();
+
+  if (ids.length) {
+    const [
+      { data: entries, error: entriesError },
+      { data: issues, error: issuesError },
+      { data: evidence, error: evidenceError },
+    ] = await Promise.all([
+      supabase
+        .from("field_report_entries")
+        .select(
+          "id,field_report_id,entry_type,statement,attribution,verification_status,created_at",
+        )
+        .in("field_report_id", ids)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("field_report_issues")
+        .select(
+          "id,field_report_id,title,description,status,owner,due_date,created_at,updated_at",
+        )
+        .in("field_report_id", ids)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("field_report_evidence")
+        .select(
+          "id,field_report_id,evidence_type,title,source_url,source_reference,notes,verification_status,created_at",
+        )
+        .in("field_report_id", ids)
+        .order("created_at", { ascending: true }),
+    ]);
+
+    if (entriesError) throw entriesError;
+    if (issuesError) throw issuesError;
+    if (evidenceError) throw evidenceError;
+
+    for (const item of entries || []) {
+      const list = entriesByReport.get(item.field_report_id) || [];
+      list.push(item);
+      entriesByReport.set(item.field_report_id, list);
+    }
+    for (const item of issues || []) {
+      const list = issuesByReport.get(item.field_report_id) || [];
+      list.push(item);
+      issuesByReport.set(item.field_report_id, list);
+    }
+    for (const item of evidence || []) {
+      const list = evidenceByReport.get(item.field_report_id) || [];
+      list.push(item);
+      evidenceByReport.set(item.field_report_id, list);
+    }
+  }
+
+  return (reports || []).map((report) => ({
+    ...report,
+    entries: entriesByReport.get(report.id) || [],
+    issues: issuesByReport.get(report.id) || [],
+    evidence: evidenceByReport.get(report.id) || [],
+  }));
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors(req) });
@@ -275,6 +350,152 @@ Deno.serve(async (req: Request) => {
         message: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+
+  if (req.method === "GET" && action === "field-reports") {
+    try {
+      return json(req, 200, { items: await fieldReportsData(supabase) });
+    } catch (error) {
+      return json(req, 500, {
+        error: "field_reports_failed",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (req.method === "POST" && action === "field-report") {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return json(req, 400, { error: "invalid_json" });
+    }
+
+    const required = [
+      "report_date",
+      "activity_type",
+      "activity_title",
+      "location_name",
+      "purpose",
+      "entries",
+    ];
+
+    const missing = required.filter((key) => body?.[key] == null);
+    if (missing.length) {
+      return json(req, 400, { error: "missing_fields", required: missing });
+    }
+
+    if (!Array.isArray(body.entries) || body.entries.length < 1) {
+      return json(req, 400, { error: "at_least_one_entry_required" });
+    }
+
+    const { data: reportId, error } = await supabase.rpc(
+      "create_field_report",
+      {
+        p_report_date: body.report_date,
+        p_activity_type: body.activity_type,
+        p_activity_title: body.activity_title,
+        p_location_name: body.location_name,
+        p_ward: body.ward ?? null,
+        p_constituency: body.constituency ?? null,
+        p_participants: Array.isArray(body.participants)
+          ? body.participants
+          : [],
+        p_purpose: body.purpose,
+        p_entries: body.entries,
+        p_issues: Array.isArray(body.issues) ? body.issues : [],
+        p_evidence: Array.isArray(body.evidence) ? body.evidence : [],
+        p_submitted_by: session.actor,
+      },
+    );
+
+    if (error) {
+      return json(req, 400, {
+        error: "field_report_create_failed",
+        message: error.message,
+      });
+    }
+
+    return json(req, 201, {
+      ok: true,
+      field_report_id: reportId,
+      status: "saved",
+    });
+  }
+
+  if (req.method === "POST" && action === "field-report-package") {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return json(req, 400, { error: "invalid_json" });
+    }
+
+    if (!body?.field_report_id) {
+      return json(req, 400, { error: "field_report_id_required" });
+    }
+
+    const { data: packageId, error } = await supabase.rpc(
+      "prepare_field_report_package",
+      {
+        p_field_report_id: body.field_report_id,
+        p_actor: session.actor,
+      },
+    );
+
+    if (error) {
+      return json(req, 400, {
+        error: "field_report_package_failed",
+        message: error.message,
+      });
+    }
+
+    return json(req, 200, {
+      ok: true,
+      content_package_id: packageId,
+      status: "review",
+    });
+  }
+
+  if (req.method === "POST" && action === "field-report-issue-status") {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return json(req, 400, { error: "invalid_json" });
+    }
+
+    const allowed = [
+      "reported",
+      "verified",
+      "action_required",
+      "in_progress",
+      "completed",
+      "follow_up_needed",
+    ];
+
+    if (!body?.issue_id || !allowed.includes(body?.status)) {
+      return json(req, 400, { error: "invalid_issue_status_request" });
+    }
+
+    const { data, error } = await supabase
+      .from("field_report_issues")
+      .update({
+        status: body.status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", body.issue_id)
+      .select("id,status,updated_at")
+      .maybeSingle();
+
+    if (error || !data) {
+      return json(req, 400, {
+        error: "issue_status_update_failed",
+        message: error?.message || "issue not found",
+      });
+    }
+
+    return json(req, 200, { ok: true, issue: data });
   }
 
   if (req.method === "POST" && action === "decision") {

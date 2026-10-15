@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f4f2ed">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://jrdtelveihwusdtpgnks.supabase.co; img-src 'self' https: data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'">
+  <title>Chai O'Clock Field Reports</title>
+  <style>
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#171717;background:#f4f2ed}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f4f2ed}
+    header{position:sticky;top:0;z-index:10;background:#f4f2edee;backdrop-filter:blur(12px);border-bottom:1px solid #dedbd2;padding:14px}
+    .top,main{max-width:820px;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .brand{font:italic 700 24px Georgia,serif}.sub{font-size:12px;color:#6a665f}
+    main{padding:16px 12px 80px}.nav{display:flex;gap:8px;flex-wrap:wrap}.nav a,.small{display:inline-block;text-decoration:none;color:#34312d;background:#e8e5dd;border:0;border-radius:10px;padding:8px 10px;font:600 13px system-ui}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.tabs button{border:0;border-radius:12px;padding:12px;font:700 14px system-ui;background:#e8e5dd}.tabs button.active{background:#171717;color:#fff}
+    .panel,.card{background:#fff;border:1px solid #dfdbd2;border-radius:20px;margin-bottom:16px;box-shadow:0 4px 18px rgba(0,0,0,.03)}
+    .panel{padding:18px}.card{overflow:hidden}.body{padding:18px}h1,h2,h3{font-family:Georgia,serif}h2{margin:0 0 12px;font-size:23px}h3{margin:18px 0 8px;font-size:17px}
+    label{display:block;font-size:12px;font-weight:700;color:#5f5a52;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+    input,textarea,select{width:100%;font:inherit;border:1px solid #dcd7cd;border-radius:11px;padding:11px;background:#fff;color:#171717}
+    textarea{min-height:86px;resize:vertical}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    .hint{font-size:12px;color:#767168;line-height:1.45;margin:5px 0}.section{border-top:1px solid #eeeae2;margin-top:18px;padding-top:4px}
+    button{font:inherit;border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}.primary{width:100%;background:#171717;color:#fff;margin-top:18px}.secondary{background:#ebe8e1;color:#34312d}.danger{background:#f2e8e6;color:#71342d}
+    button:disabled{opacity:.55;cursor:not-allowed}.rowbox{border:1px solid #ebe7df;border-radius:14px;padding:12px;margin:10px 0;background:#fcfbf8}.rowactions{display:flex;justify-content:flex-end;margin-top:8px}
+    .meta{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}.pill{font-size:11px;text-transform:uppercase;letter-spacing:.06em;background:#efede7;border-radius:999px;padding:6px 9px;color:#59564f}.packaged{background:#dff2e4;color:#1d5b2b}.saved{background:#fff1c7;color:#6a4c00}
+    .facts{margin-top:12px;border-top:1px solid #eeeae2}.fact{display:grid;grid-template-columns:92px 1fr;gap:8px;padding:9px 0;border-bottom:1px solid #f1eee8;font-size:13px}.fact strong{font-size:11px;text-transform:uppercase;color:#777269}.attribution{font-size:11px;color:#767168;margin-top:3px}
+    .issue{padding:10px 0;border-bottom:1px solid #f1eee8}.issue:last-child{border-bottom:0}.issuehead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.issue select{width:auto;min-width:150px;padding:7px;font-size:12px}
+    .evidence{font-size:13px;padding:7px 0}.evidence a{color:#171717}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;color:#68645c;font-size:13px}
+    .empty,.gate{text-align:center;background:#fff;border:1px solid #dfdbd2;border-radius:20px;padding:38px 22px}.gate h1{font-style:italic}.hidden{display:none!important}.success{color:#236033}.error{color:#8a2929}
+    @media(max-width:620px){.grid2,.grid3{grid-template-columns:1fr}.issuehead{display:block}.issue select{width:100%;margin-top:8px}.fact{grid-template-columns:78px 1fr}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div><div class="brand">Chai O'Clock</div><div class="sub">Field reporting</div></div>
+    <div class="nav"><a href="./">Review Queue</a></div>
+  </div>
+</header>
+
+<main>
+  <section id="loginGate" class="gate hidden">
+    <h1>Chai O'Clock</h1>
+    <h2>Private field reporting</h2>
+    <p>This browser is not authorized. Open the main Chai O'Clock approval dashboard on this browser first.</p>
+    <a href="./">Return to review dashboard</a>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="tabs">
+      <button id="newTab" class="active" onclick="switchTab('new')">New Field Report</button>
+      <button id="reportsTab" onclick="switchTab('reports')">Saved Reports</button>
+    </div>
+
+    <div id="newPanel" class="panel">
+      <h2>New Field Report</h2>
+      <p class="hint">Record what happened once. Keep observations, stakeholder reports, completed actions and future commitments separate.</p>
+
+      <div class="grid2">
+        <div><label>Date</label><input id="reportDate" type="date"></div>
+        <div><label>Activity type</label>
+          <select id="activityType">
+            <option>School visit</option><option>Community meeting</option><option>Project inspection</option>
+            <option>Service delivery</option><option>Stakeholder meeting</option><option>Site visit</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Activity title</label><input id="activityTitle" placeholder="e.g. Visit to Kiserian Primary School">
+      <div class="grid3">
+        <div><label>Location</label><input id="locationName" placeholder="School, village, market, road…"></div>
+        <div><label>Ward</label><input id="ward" placeholder="Ward"></div>
+        <div><label>Constituency</label><input id="constituency" value="Kajiado North"></div>
+      </div>
+
+      <label>Participants / stakeholders</label>
+      <textarea id="participants" placeholder="One person, institution or group per line"></textarea>
+
+      <label>Why were you there?</label>
+      <textarea id="purpose" placeholder="Purpose of the visit or activity"></textarea>
+
+      <div class="section">
+        <h3>Observed</h3>
+        <p class="hint">Things you or the team directly saw. One fact per line.</p>
+        <textarea id="observed" placeholder="e.g. Two classrooms had damaged windows"></textarea>
+        <label>Observation verification</label>
+        <select id="observedVerification"><option value="unverified">Unverified</option><option value="verified">Verified</option><option value="corroborated">Corroborated</option></select>
+      </div>
+
+      <div class="section">
+        <h3>Reported by people</h3>
+        <p class="hint">Things teachers, residents, officials or other stakeholders told you. One point per line.</p>
+        <textarea id="reported" placeholder="e.g. Teachers reported a shortage of desks"></textarea>
+        <label>Attribution</label><input id="reportedBy" placeholder="e.g. School administration / teachers / residents">
+      </div>
+
+      <div class="section">
+        <h3>Completed</h3>
+        <p class="hint">Only actions that actually happened or were completed.</p>
+        <textarea id="completed" placeholder="e.g. Sanitary towels were delivered to the school"></textarea>
+      </div>
+
+      <div class="section">
+        <h3>Committed</h3>
+        <p class="hint">Promises or actions that have not yet been completed.</p>
+        <textarea id="committed" placeholder="e.g. Engage alumni and CSR partners on desks"></textarea>
+      </div>
+
+      <div class="section">
+        <h3>Next steps</h3>
+        <textarea id="nextSteps" placeholder="e.g. Follow up with the school board next week"></textarea>
+      </div>
+
+      <div class="section">
+        <h3>Issues & follow-up tracker</h3>
+        <div id="issues"></div>
+        <button class="secondary" type="button" onclick="addIssue()">+ Add issue</button>
+      </div>
+
+      <div class="section">
+        <h3>Evidence</h3>
+        <p class="hint">Add a photo/video/document link, or a reference such as “Photos on team phone — 15 Oct”.</p>
+        <div id="evidence"></div>
+        <button class="secondary" type="button" onclick="addEvidence()">+ Add evidence</button>
+      </div>
+
+      <button id="saveButton" class="primary" onclick="saveReport()">Save Field Report</button>
+      <p id="saveMessage" class="hint"></p>
+    </div>
+
+    <div id="reportsPanel" class="hidden">
+      <div class="toolbar"><span id="reportSummary">Loading…</span><button class="small" onclick="loadReports()">Refresh</button></div>
+      <div id="reportList"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const API="https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/review-dashboard-api";
+const STORAGE_KEY="chai_oclock_review_session_v3";
+let issueIndex=0,evidenceIndex=0;
+
+const esc=(s="")=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const lines=(id)=>document.getElementById(id).value.split("\n").map(x=>x.trim()).filter(Boolean);
+const sessionToken=()=>localStorage.getItem(STORAGE_KEY);
+
+async function api(action,options={}){
+  const headers={
+    ...(options.body?{"content-type":"application/json"}:{}),
+    ...(sessionToken()?{"x-chai-dashboard-session":sessionToken()}:{}),
+    ...(options.headers||{})
+  };
+  const res=await fetch(API+"?action="+encodeURIComponent(action),{...options,headers,cache:"no-store"});
+  const body=await res.json().catch(()=>({}));
+  if(res.status===401)localStorage.removeItem(STORAGE_KEY);
+  return {res,body};
+}
+
+function switchTab(tab){
+  document.getElementById("newPanel").classList.toggle("hidden",tab!=="new");
+  document.getElementById("reportsPanel").classList.toggle("hidden",tab!=="reports");
+  document.getElementById("newTab").classList.toggle("active",tab==="new");
+  document.getElementById("reportsTab").classList.toggle("active",tab==="reports");
+  if(tab==="reports")loadReports();
+}
+
+function addIssue(){
+  const id=++issueIndex,box=document.createElement("div");
+  box.className="rowbox";box.id="issue-"+id;
+  box.innerHTML='<div class="grid2"><div><label>Issue</label><input class="issue-title" placeholder="e.g. Lack of desks"></div><div><label>Status</label><select class="issue-status"><option value="reported">Reported</option><option value="verified">Verified</option><option value="action_required">Action required</option><option value="in_progress">In progress</option><option value="completed">Completed</option><option value="follow_up_needed">Follow-up needed</option></select></div></div><label>Description</label><textarea class="issue-description" placeholder="What is the issue?"></textarea><div class="grid2"><div><label>Owner / follow-up</label><input class="issue-owner" placeholder="Person, office or partner"></div><div><label>Due date</label><input class="issue-due" type="date"></div></div><div class="rowactions"><button class="danger" type="button" onclick="document.getElementById(\'issue-'+id+'\').remove()">Remove</button></div>';
+  document.getElementById("issues").appendChild(box);
+}
+
+function addEvidence(){
+  const id=++evidenceIndex,box=document.createElement("div");
+  box.className="rowbox";box.id="evidence-"+id;
+  box.innerHTML='<div class="grid2"><div><label>Evidence type</label><select class="evidence-type"><option value="photo">Photo</option><option value="video">Video</option><option value="document">Document</option><option value="letter">Letter</option><option value="meeting_note">Meeting note</option><option value="web">Web link</option><option value="other">Other</option></select></div><div><label>Verification</label><select class="evidence-verification"><option value="unverified">Unverified</option><option value="verified">Verified</option><option value="corroborated">Corroborated</option><option value="disputed">Disputed</option></select></div></div><label>Title</label><input class="evidence-title" placeholder="e.g. Classroom photos"><label>URL (optional)</label><input class="evidence-url" type="url" placeholder="https://…"><label>Reference (if no URL)</label><input class="evidence-reference" placeholder="e.g. Photos on team phone — 15 Oct 2026"><label>Notes</label><textarea class="evidence-notes"></textarea><div class="rowactions"><button class="danger" type="button" onclick="document.getElementById(\'evidence-'+id+'\').remove()">Remove</button></div>';
+  document.getElementById("evidence").appendChild(box);
+}
+
+function collectIssues(){
+  return [...document.querySelectorAll("#issues .rowbox")].map(box=>({
+    title:box.querySelector(".issue-title").value.trim(),
+    description:box.querySelector(".issue-description").value.trim()||null,
+    status:box.querySelector(".issue-status").value,
+    owner:box.querySelector(".issue-owner").value.trim()||null,
+    due_date:box.querySelector(".issue-due").value||null
+  })).filter(x=>x.title);
+}
+function collectEvidence(){
+  return [...document.querySelectorAll("#evidence .rowbox")].map(box=>({
+    evidence_type:box.querySelector(".evidence-type").value,
+    title:box.querySelector(".evidence-title").value.trim()||null,
+    source_url:box.querySelector(".evidence-url").value.trim()||null,
+    source_reference:box.querySelector(".evidence-reference").value.trim()||null,
+    notes:box.querySelector(".evidence-notes").value.trim()||null,
+    verification_status:box.querySelector(".evidence-verification").value
+  })).filter(x=>x.source_url||x.source_reference);
+}
+function entry(type,statement,attribution=null,verification="unverified"){
+  return {entry_type:type,statement,attribution,verification_status:verification};
+}
+function collectEntries(){
+  const out=[];
+  for(const s of lines("observed"))out.push(entry("observed",s,null,document.getElementById("observedVerification").value));
+  const attribution=document.getElementById("reportedBy").value.trim()||null;
+  for(const s of lines("reported"))out.push(entry("reported",s,attribution,"unverified"));
+  for(const s of lines("completed"))out.push(entry("completed",s,null,"unverified"));
+  for(const s of lines("committed"))out.push(entry("committed",s,null,"unverified"));
+  for(const s of lines("nextSteps"))out.push(entry("next_step",s,null,"unverified"));
+  return out;
+}
+
+async function saveReport(){
+  const button=document.getElementById("saveButton"),message=document.getElementById("saveMessage");
+  const payload={
+    report_date:document.getElementById("reportDate").value,
+    activity_type:document.getElementById("activityType").value,
+    activity_title:document.getElementById("activityTitle").value.trim(),
+    location_name:document.getElementById("locationName").value.trim(),
+    ward:document.getElementById("ward").value.trim()||null,
+    constituency:document.getElementById("constituency").value.trim()||null,
+    participants:lines("participants"),
+    purpose:document.getElementById("purpose").value.trim(),
+    entries:collectEntries(),issues:collectIssues(),evidence:collectEvidence()
+  };
+  if(!payload.report_date||!payload.activity_title||!payload.location_name||!payload.purpose){
+    message.className="hint error";message.textContent="Date, title, location and purpose are required.";return;
+  }
+  if(!payload.entries.length){
+    message.className="hint error";message.textContent="Add at least one observed, reported, completed, committed or next-step item.";return;
+  }
+  button.disabled=true;message.className="hint";message.textContent="Saving field report…";
+  const {res,body}=await api("field-report",{method:"POST",body:JSON.stringify(payload)});
+  button.disabled=false;
+  if(res.status===401){location.href="./";return}
+  if(!res.ok){message.className="hint error";message.textContent=body.message||body.error||"Save failed.";return}
+  message.className="hint success";message.textContent="Field report saved. You can now prepare it for approval from Saved Reports.";
+  setTimeout(()=>switchTab("reports"),700);
+}
+
+function groupEntries(entries,type){return(entries||[]).filter(x=>x.entry_type===type)}
+function factsHtml(r){
+  const groups=[["Observed","observed"],["Reported","reported"],["Completed","completed"],["Committed","committed"],["Next","next_step"]];
+  return groups.map(([label,type])=>{
+    const items=groupEntries(r.entries,type);if(!items.length)return"";
+    return items.map((x,i)=>'<div class="fact"><strong>'+(i? "":label)+'</strong><div>'+esc(x.statement)+(x.attribution?'<div class="attribution">Attributed to: '+esc(x.attribution)+'</div>':'')+'<div class="attribution">'+esc(x.verification_status)+'</div></div></div>').join("");
+  }).join("");
+}
+function issueHtml(issue){
+  const opts=["reported","verified","action_required","in_progress","completed","follow_up_needed"].map(s=>'<option value="'+s+'"'+(issue.status===s?' selected':'')+'>'+esc(s.replaceAll("_"," "))+'</option>').join("");
+  return '<div class="issue"><div class="issuehead"><div><strong>'+esc(issue.title)+'</strong>'+(issue.description?'<div class="hint">'+esc(issue.description)+'</div>':'')+(issue.owner?'<div class="hint">Owner: '+esc(issue.owner)+'</div>':'')+(issue.due_date?'<div class="hint">Due: '+esc(issue.due_date)+'</div>':'')+'</div><select onchange="updateIssue(\''+issue.id+'\',this.value)">'+opts+'</select></div></div>';
+}
+function evidenceHtml(e){
+  const label=esc(e.title||e.source_reference||e.source_url||"Evidence");
+  const main=e.source_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(e.source_url)+'">'+label+'</a>':label;
+  return '<div class="evidence">'+main+' <span class="pill">'+esc(e.evidence_type)+'</span> <span class="pill">'+esc(e.verification_status)+'</span>'+(e.notes?'<div class="hint">'+esc(e.notes)+'</div>':'')+'</div>';
+}
+function reportCard(r){
+  const issues=(r.issues||[]).map(issueHtml).join("");
+  const evidence=(r.evidence||[]).map(evidenceHtml).join("");
+  const action=r.content_package_id
+    ? '<a class="small" href="./">Open Review Queue</a>'
+    : '<button class="secondary" onclick="preparePackage(\''+r.id+'\',this)">Prepare for Approval</button>';
+  return '<article class="card"><div class="body"><div class="meta"><span class="pill '+esc(r.status)+'">'+esc(r.status)+'</span><span class="pill">'+esc(r.activity_type)+'</span><span class="pill">'+esc(r.report_date)+'</span></div><h2>'+esc(r.activity_title)+'</h2><div class="hint">'+esc(r.location_name)+(r.ward?' · '+esc(r.ward):'')+(r.constituency?' · '+esc(r.constituency):'')+'</div><h3>Purpose</h3><div>'+esc(r.purpose)+'</div><div class="facts">'+factsHtml(r)+'</div>'+(issues?'<h3>Issues & follow-up</h3>'+issues:'')+(evidence?'<h3>Evidence</h3>'+evidence:'')+'<div style="margin-top:16px">'+action+'</div></div></article>';
+}
+async function loadReports(){
+  document.getElementById("reportSummary").textContent="Loading…";
+  const {res,body}=await api("field-reports");
+  if(res.status===401){location.href="./";return}
+  if(!res.ok){document.getElementById("reportSummary").textContent="Unable to load";document.getElementById("reportList").innerHTML='<div class="empty error">'+esc(body.message||body.error)+'</div>';return}
+  const items=body.items||[];
+  document.getElementById("reportSummary").textContent=items.length+" field report"+(items.length===1?"":"s");
+  document.getElementById("reportList").innerHTML=items.length?items.map(reportCard).join(""):'<div class="empty"><h2>No field reports yet</h2><p>Your saved reports will appear here.</p></div>';
+}
+async function preparePackage(id,button){
+  if(!confirm("Create a neutral review package from the recorded facts?"))return;
+  button.disabled=true;button.textContent="Preparing…";
+  const {res,body}=await api("field-report-package",{method:"POST",body:JSON.stringify({field_report_id:id})});
+  if(!res.ok){button.disabled=false;button.textContent="Prepare for Approval";alert(body.message||body.error||"Could not prepare package.");return}
+  await loadReports();
+  alert("Prepared for approval. It is now in the Review Queue.");
+}
+async function updateIssue(id,status){
+  const {res,body}=await api("field-report-issue-status",{method:"POST",body:JSON.stringify({issue_id:id,status})});
+  if(!res.ok)alert(body.message||body.error||"Could not update issue status.");
+}
+
+(async function init(){
+  if(!sessionToken()){document.getElementById("loginGate").classList.remove("hidden");return}
+  document.getElementById("app").classList.remove("hidden");
+  document.getElementById("reportDate").value=new Date().toISOString().slice(0,10);
+  addIssue();addEvidence();
+})();
+</script>
+</body>
+</html>

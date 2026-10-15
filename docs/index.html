@@ -80,7 +80,10 @@
   <section id="app" class="hidden">
     <div class="toolbar">
       <span id="summary">Loading…</span>
-      <button class="small" onclick="loadQueue()">Refresh</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <a class="small" href="./field-reports.html" style="text-decoration:none;color:#34312d">Field Reports</a>
+        <button class="small" onclick="loadQueue()">Refresh</button>
+      </div>
     </div>
     <div id="queue"></div>
   </section>
