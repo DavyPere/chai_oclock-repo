@@ -241,3 +241,51 @@ Direct photo uploads create both an `assets` record and a `field_report_evidence
 Full-resolution sets, large batches and videos should stay in the photographer's Google Drive folder. Selected photos needed for reporting or Canva can be uploaded directly into Chai O'Clock.
 
 Saved field reports also include an **Add photos** control so media can be attached after the initial report is created.
+
+
+## Messaging Bank
+
+The Messaging Bank is a controlled registry for user-authored campaign wording. It stores exact text and supporting provenance; it does not generate or rewrite political persuasion.
+
+The bank includes five editable neutral pillars:
+
+- Education
+- Water & Sanitation
+- Roads & Infrastructure
+- Youth & Livelihoods
+- Public Accountability
+
+Each bank item records:
+
+- internal label,
+- category,
+- pillar,
+- exact poster wording,
+- optional exact caption,
+- attribution,
+- claim type,
+- verification status,
+- source URL/reference and source notes,
+- optional template key,
+- optional image guidance,
+- internal notes,
+- approval status and audit history.
+
+Statuses are:
+
+`draft → review → approved`
+
+with `paused` and `retired` available for lifecycle control.
+
+Important controls:
+
+- factual claims and quotations require a source URL or reference,
+- factual claims must be corroborated or verified before approval,
+- quotations must be verified before approval,
+- approved wording is marked `wording_locked = true`,
+- editing an approved item automatically returns it to Draft and clears approval metadata,
+- every create/edit/status change is written to `message_bank_events`.
+
+The private UI is `docs/messaging-bank.html` and shares the existing dashboard browser session.
+
+Messaging Bank v1 deliberately stops at approved registry content. It does not automatically create posters, render Canva designs, schedule posts, target audiences, or publish content. Any later design connection should copy user-approved wording exactly and retain the existing human review gate.
