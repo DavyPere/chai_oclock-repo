@@ -9,7 +9,8 @@
     "canva:bootstrap-token": "node scripts/bootstrap-canva-refresh-token.mjs",
     "test:submit-http": "node scripts/test-submit-http.mjs",
     "test:research-editor": "node scripts/test-research-editor.mjs",
-    "research:run": "node scripts/research-editor-worker.mjs"
+    "research:run": "node scripts/research-editor-worker.mjs",
+    "test:field-report": "node scripts/test-field-report.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
