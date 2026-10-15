@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f4f2ed">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://jrdtelveihwusdtpgnks.supabase.co; style-src 'unsafe-inline'; script-src 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'">
+  <title>Chai O'Clock Messaging Bank</title>
+  <style>
+    :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#171717;background:#f4f2ed}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#f4f2ed}
+    header{position:sticky;top:0;z-index:10;background:#f4f2edee;backdrop-filter:blur(12px);border-bottom:1px solid #dedbd2;padding:14px}
+    .top,main{max-width:900px;margin:auto}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .brand{font:italic 700 24px Georgia,serif}.sub{font-size:12px;color:#6a665f}.nav{display:flex;gap:8px;flex-wrap:wrap}
+    .nav a,.small{display:inline-block;text-decoration:none;color:#34312d;background:#e8e5dd;border:0;border-radius:10px;padding:8px 10px;font:600 13px system-ui}
+    main{padding:16px 12px 80px}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.tabs button{border:0;border-radius:12px;padding:12px;font:700 14px system-ui;background:#e8e5dd}.tabs button.active{background:#171717;color:#fff}
+    .panel,.card{background:#fff;border:1px solid #dfdbd2;border-radius:20px;margin-bottom:16px;box-shadow:0 4px 18px rgba(0,0,0,.03)}
+    .panel{padding:18px}.card{overflow:hidden}.body{padding:18px}h1,h2,h3{font-family:Georgia,serif}h2{margin:0 0 12px;font-size:23px}h3{margin:18px 0 8px;font-size:17px}
+    label{display:block;font-size:12px;font-weight:700;color:#5f5a52;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+    input,textarea,select{width:100%;font:inherit;border:1px solid #dcd7cd;border-radius:11px;padding:11px;background:#fff;color:#171717}
+    textarea{min-height:100px;resize:vertical}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+    .hint{font-size:12px;color:#767168;line-height:1.5;margin:5px 0}.section{border-top:1px solid #eeeae2;margin-top:18px;padding-top:4px}
+    button{font:inherit;border:0;border-radius:12px;padding:12px 15px;font-weight:700;cursor:pointer}button:disabled{opacity:.55;cursor:not-allowed}
+    .primary{width:100%;background:#171717;color:#fff;margin-top:18px}.secondary{background:#ebe8e1;color:#34312d}.danger{background:#f2e8e6;color:#71342d}
+    .meta{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}.pill{font-size:11px;text-transform:uppercase;letter-spacing:.06em;background:#efede7;border-radius:999px;padding:6px 9px;color:#59564f}
+    .draft{background:#efede7}.review{background:#fff1c7;color:#6a4c00}.approved{background:#dff2e4;color:#1d5b2b}.paused{background:#e6edf8;color:#264b78}.retired{background:#eee;color:#666}
+    .textBlock{white-space:pre-wrap;line-height:1.5;background:#faf9f6;border-radius:12px;padding:12px;margin:10px 0}.source{font-size:13px;padding:7px 0}.source a{color:#171717}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.actions button{padding:9px 11px;font-size:13px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;color:#68645c;font-size:13px}
+    .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}.event{font-size:12px;color:#6d685f;padding:5px 0;border-top:1px solid #f1eee8}.empty,.gate{text-align:center;background:#fff;border:1px solid #dfdbd2;border-radius:20px;padding:38px 22px}
+    .gate h1{font-style:italic}.hidden{display:none!important}.success{color:#236033}.error{color:#8a2929}
+    @media(max-width:620px){.grid2,.grid3,.filters{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div><div class="brand">Chai O'Clock</div><div class="sub">Messaging Bank</div></div>
+    <div class="nav"><a href="./">Review Queue</a><a href="./field-reports.html">Field Reports</a></div>
+  </div>
+</header>
+
+<main>
+  <section id="loginGate" class="gate hidden">
+    <h1>Chai O'Clock</h1>
+    <h2>Private Messaging Bank</h2>
+    <p>This browser is not authorized. Open the main Chai O'Clock dashboard first.</p>
+    <a href="./">Return to review dashboard</a>
+  </section>
+
+  <section id="app" class="hidden">
+    <div class="tabs">
+      <button id="newTab" class="active" onclick="switchTab('new')">Add Wording</button>
+      <button id="bankTab" onclick="switchTab('bank')">Review Bank</button>
+    </div>
+
+    <section id="newPanel" class="panel">
+      <h2 id="formTitle">Add wording</h2>
+      <p class="hint">This page stores wording exactly as entered. It does not generate or rewrite campaign language. Approved wording is locked; if it is edited later, it automatically returns to Draft.</p>
+      <input id="editId" type="hidden">
+
+      <div class="grid2">
+        <div><label>Internal label</label><input id="internalLabel" placeholder="e.g. Education commitment 01"></div>
+        <div><label>Pillar</label><select id="pillar"></select></div>
+      </div>
+
+      <div class="grid3">
+        <div><label>Category</label>
+          <select id="category">
+            <option value="manifesto_commitment">Manifesto commitment</option>
+            <option value="factual_statement">Factual statement</option>
+            <option value="attributed_quote">Attributed quote</option>
+            <option value="values_statement">Values statement</option>
+            <option value="issue_position">Issue position</option>
+            <option value="public_information">Public information</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div><label>Claim type</label>
+          <select id="claimType" onchange="claimTypeChanged()">
+            <option value="commitment">Commitment</option>
+            <option value="opinion">Opinion</option>
+            <option value="aspiration">Aspiration</option>
+            <option value="factual_claim">Factual claim</option>
+            <option value="quotation">Quotation</option>
+            <option value="public_information">Public information</option>
+          </select>
+        </div>
+        <div><label>Verification</label>
+          <select id="verification">
+            <option value="not_required">Not required</option>
+            <option value="unverified">Unverified</option>
+            <option value="corroborated">Corroborated</option>
+            <option value="verified">Verified</option>
+            <option value="disputed">Disputed</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Exact poster wording</label>
+      <textarea id="exactText" placeholder="Enter the exact wording you want stored."></textarea>
+
+      <label>Exact caption (optional)</label>
+      <textarea id="captionExact" placeholder="Optional exact caption. Leave blank if not yet decided."></textarea>
+
+      <label>Attribution (optional)</label>
+      <input id="attribution" placeholder="For an attributed quote or named source">
+
+      <div class="section">
+        <h3>Source / provenance</h3>
+        <p id="sourceHint" class="hint">Add the manifesto document, field report, public record, quotation source, or other basis for this wording when relevant.</p>
+        <div class="grid2">
+          <div><label>Source URL</label><input id="sourceUrl" type="url" placeholder="https://..."></div>
+          <div><label>Source reference</label><input id="sourceReference" placeholder="Document, page, meeting, field report ID..."></div>
+        </div>
+        <label>Source notes</label><textarea id="sourceNotes" placeholder="What does this source establish?"></textarea>
+      </div>
+
+      <div class="section">
+        <h3>Design administration</h3>
+        <div class="grid2">
+          <div><label>Template key (optional)</label><input id="templateKey" placeholder="e.g. user_update_01"></div>
+          <div><label>Image guidance (optional)</label><input id="imageGuidance" placeholder="User-provided art direction or asset note"></div>
+        </div>
+        <label>Internal notes</label><textarea id="notes" placeholder="Review notes, wording concerns, context..."></textarea>
+      </div>
+
+      <button id="saveButton" class="primary" onclick="saveItem()">Save as Draft</button>
+      <button id="cancelEditButton" class="secondary hidden" style="width:100%;margin-top:8px" onclick="resetForm()">Cancel edit</button>
+      <p id="saveMessage" class="hint"></p>
+    </section>
+
+    <section id="bankPanel" class="hidden">
+      <div class="toolbar"><span id="summary">Loading…</span><button class="small" onclick="loadBank()">Refresh</button></div>
+      <div class="filters">
+        <select id="statusFilter" onchange="renderBank()">
+          <option value="">All statuses</option>
+          <option value="draft">Draft</option>
+          <option value="review">Review</option>
+          <option value="approved">Approved</option>
+          <option value="paused">Paused</option>
+          <option value="retired">Retired</option>
+        </select>
+        <select id="pillarFilter" onchange="renderBank()"><option value="">All pillars</option></select>
+      </div>
+      <div id="bankList"></div>
+    </section>
+  </section>
+</main>
+
+<script>
+const API="https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/review-dashboard-api";
+const STORAGE_KEY="chai_oclock_review_session_v3";
+let pillars=[],items=[];
+
+const esc=(s="")=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const sessionToken=()=>localStorage.getItem(STORAGE_KEY);
+
+async function api(action,options={}){
+  const headers={
+    ...(options.body?{"content-type":"application/json"}:{}),
+    ...(sessionToken()?{"x-chai-dashboard-session":sessionToken()}:{}),
+    ...(options.headers||{})
+  };
+  const res=await fetch(API+"?action="+encodeURIComponent(action),{...options,headers,cache:"no-store"});
+  const body=await res.json().catch(()=>({}));
+  if(res.status===401)localStorage.removeItem(STORAGE_KEY);
+  return {res,body};
+}
+
+function switchTab(tab){
+  document.getElementById("newPanel").classList.toggle("hidden",tab!=="new");
+  document.getElementById("bankPanel").classList.toggle("hidden",tab!=="bank");
+  document.getElementById("newTab").classList.toggle("active",tab==="new");
+  document.getElementById("bankTab").classList.toggle("active",tab==="bank");
+  if(tab==="bank")loadBank();
+}
+
+function claimTypeChanged(){
+  const type=document.getElementById("claimType").value;
+  const requires=type==="factual_claim"||type==="quotation";
+  document.getElementById("sourceHint").textContent=requires
+    ? "A factual claim or quotation requires a source URL or source reference before it can be saved."
+    : "Add the manifesto document, field report, public record, quotation source, or other basis for this wording when relevant.";
+}
+
+function populatePillars(){
+  const select=document.getElementById("pillar");
+  const filter=document.getElementById("pillarFilter");
+  const options=pillars.map(p=>'<option value="'+p.id+'">'+esc(p.name)+'</option>').join("");
+  select.innerHTML='<option value="">No pillar</option>'+options;
+  filter.innerHTML='<option value="">All pillars</option>'+options;
+}
+
+function formPayload(){
+  return {
+    id:document.getElementById("editId").value||null,
+    internal_label:document.getElementById("internalLabel").value.trim(),
+    category:document.getElementById("category").value,
+    pillar_id:document.getElementById("pillar").value||null,
+    exact_text:document.getElementById("exactText").value.trim(),
+    caption_exact:document.getElementById("captionExact").value.trim()||null,
+    attribution:document.getElementById("attribution").value.trim()||null,
+    claim_type:document.getElementById("claimType").value,
+    verification_status:document.getElementById("verification").value,
+    source_url:document.getElementById("sourceUrl").value.trim()||null,
+    source_reference:document.getElementById("sourceReference").value.trim()||null,
+    source_notes:document.getElementById("sourceNotes").value.trim()||null,
+    template_key:document.getElementById("templateKey").value.trim()||null,
+    image_guidance:document.getElementById("imageGuidance").value.trim()||null,
+    notes:document.getElementById("notes").value.trim()||null
+  };
+}
+
+async function saveItem(){
+  const payload=formPayload(),message=document.getElementById("saveMessage"),button=document.getElementById("saveButton");
+  if(!payload.internal_label||!payload.exact_text){
+    message.className="hint error";message.textContent="Internal label and exact wording are required.";return;
+  }
+  if((payload.claim_type==="factual_claim"||payload.claim_type==="quotation")&&!payload.source_url&&!payload.source_reference){
+    message.className="hint error";message.textContent="Factual claims and quotations require a source URL or source reference.";return;
+  }
+  button.disabled=true;message.className="hint";message.textContent=payload.id?"Saving changes…":"Saving draft…";
+  const action=payload.id?"message-bank-item-update":"message-bank-item";
+  const {res,body}=await api(action,{method:"POST",body:JSON.stringify(payload)});
+  button.disabled=false;
+  if(!res.ok){message.className="hint error";message.textContent=body.message||body.error||"Could not save.";return}
+  message.className="hint success";
+  message.textContent=payload.id?"Changes saved. Approved wording returns to Draft automatically if changed.":"Draft saved.";
+  resetForm(false);
+  setTimeout(()=>switchTab("bank"),500);
+}
+
+function resetForm(clearMessage=true){
+  for(const id of ["editId","internalLabel","exactText","captionExact","attribution","sourceUrl","sourceReference","sourceNotes","templateKey","imageGuidance","notes"]){
+    document.getElementById(id).value="";
+  }
+  document.getElementById("pillar").value="";
+  document.getElementById("category").value="manifesto_commitment";
+  document.getElementById("claimType").value="commitment";
+  document.getElementById("verification").value="not_required";
+  document.getElementById("formTitle").textContent="Add wording";
+  document.getElementById("saveButton").textContent="Save as Draft";
+  document.getElementById("cancelEditButton").classList.add("hidden");
+  if(clearMessage)document.getElementById("saveMessage").textContent="";
+  claimTypeChanged();
+}
+
+function pillarName(id){
+  return pillars.find(p=>p.id===id)?.name||"No pillar";
+}
+
+function eventHtml(events){
+  if(!events?.length)return"";
+  return '<h3>Recent history</h3>'+events.map(e=>'<div class="event">'+esc(e.event_type.replaceAll("_"," "))+' · '+esc(new Date(e.created_at).toLocaleString())+(e.note?' · '+esc(e.note):'')+'</div>').join("");
+}
+
+function card(item){
+  const source=(item.source_url||item.source_reference)
+    ? '<div class="source"><strong>Source:</strong> '+(item.source_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(item.source_url)+'">'+esc(item.source_url)+'</a>':esc(item.source_reference))+(item.source_reference&&item.source_url?' · '+esc(item.source_reference):'')+'</div>'
+    : '<div class="source"><strong>Source:</strong> none recorded</div>';
+  const attribution=item.attribution?'<div class="source"><strong>Attribution:</strong> '+esc(item.attribution)+'</div>':'';
+  const caption=item.caption_exact?'<h3>Exact caption</h3><div class="textBlock">'+esc(item.caption_exact)+'</div>':'';
+  const lock=item.wording_locked?'<span class="pill approved">wording locked</span>':'';
+  const actions=[
+    '<button class="secondary" onclick="editItem(\''+item.id+'\')">Edit</button>'
+  ];
+  if(item.status==="draft")actions.push('<button class="secondary" onclick="setStatus(\''+item.id+'\',\'review\')">Send to Review</button>');
+  if(item.status==="review")actions.push('<button class="secondary" onclick="setStatus(\''+item.id+'\',\'approved\')">Approve wording</button>','<button class="secondary" onclick="setStatus(\''+item.id+'\',\'draft\')">Return to Draft</button>');
+  if(item.status==="approved")actions.push('<button class="secondary" onclick="setStatus(\''+item.id+'\',\'paused\')">Pause</button>');
+  if(item.status==="paused")actions.push('<button class="secondary" onclick="setStatus(\''+item.id+'\',\'approved\')">Re-approve</button>','<button class="danger" onclick="setStatus(\''+item.id+'\',\'retired\')">Retire</button>');
+  if(item.status!=="retired"&&item.status!=="paused")actions.push('<button class="danger" onclick="setStatus(\''+item.id+'\',\'retired\')">Retire</button>');
+
+  return '<article class="card"><div class="body">'+
+    '<div class="meta"><span class="pill '+esc(item.status)+'">'+esc(item.status)+'</span><span class="pill">'+esc(item.category.replaceAll("_"," "))+'</span><span class="pill">'+esc(pillarName(item.pillar_id))+'</span><span class="pill">'+esc(item.claim_type.replaceAll("_"," "))+'</span>'+lock+'</div>'+
+    '<h2>'+esc(item.internal_label)+'</h2>'+
+    '<div class="textBlock">'+esc(item.exact_text)+'</div>'+
+    caption+attribution+source+
+    '<div class="source"><strong>Verification:</strong> '+esc(item.verification_status.replaceAll("_"," "))+'</div>'+
+    (item.template_key?'<div class="source"><strong>Template:</strong> '+esc(item.template_key)+'</div>':'')+
+    (item.image_guidance?'<div class="source"><strong>Image guidance:</strong> '+esc(item.image_guidance)+'</div>':'')+
+    (item.notes?'<div class="source"><strong>Notes:</strong> '+esc(item.notes)+'</div>':'')+
+    eventHtml(item.events)+
+    '<div class="actions">'+actions.join("")+'</div>'+
+    '</div></article>';
+}
+
+function renderBank(){
+  const status=document.getElementById("statusFilter").value;
+  const pillar=document.getElementById("pillarFilter").value;
+  const filtered=items.filter(i=>(!status||i.status===status)&&(!pillar||i.pillar_id===pillar));
+  document.getElementById("summary").textContent=filtered.length+" item"+(filtered.length===1?"":"s")+" shown · "+items.length+" total";
+  document.getElementById("bankList").innerHTML=filtered.length?filtered.map(card).join(""):'<div class="empty"><h2>No matching wording</h2><p>Add a draft or change the filters.</p></div>';
+}
+
+async function loadBank(){
+  document.getElementById("summary").textContent="Loading…";
+  const {res,body}=await api("messaging-bank");
+  if(res.status===401){location.href="./";return}
+  if(!res.ok){document.getElementById("summary").textContent="Unable to load";document.getElementById("bankList").innerHTML='<div class="empty error">'+esc(body.message||body.error)+'</div>';return}
+  pillars=body.pillars||[];items=body.items||[];
+  populatePillars();renderBank();
+}
+
+function editItem(id){
+  const item=items.find(i=>i.id===id);if(!item)return;
+  document.getElementById("editId").value=item.id;
+  document.getElementById("internalLabel").value=item.internal_label||"";
+  document.getElementById("category").value=item.category;
+  document.getElementById("pillar").value=item.pillar_id||"";
+  document.getElementById("exactText").value=item.exact_text||"";
+  document.getElementById("captionExact").value=item.caption_exact||"";
+  document.getElementById("attribution").value=item.attribution||"";
+  document.getElementById("claimType").value=item.claim_type;
+  document.getElementById("verification").value=item.verification_status;
+  document.getElementById("sourceUrl").value=item.source_url||"";
+  document.getElementById("sourceReference").value=item.source_reference||"";
+  document.getElementById("sourceNotes").value=item.source_notes||"";
+  document.getElementById("templateKey").value=item.template_key||"";
+  document.getElementById("imageGuidance").value=item.image_guidance||"";
+  document.getElementById("notes").value=item.notes||"";
+  document.getElementById("formTitle").textContent="Edit wording";
+  document.getElementById("saveButton").textContent="Save Changes";
+  document.getElementById("cancelEditButton").classList.remove("hidden");
+  claimTypeChanged();switchTab("new");scrollTo({top:0,behavior:"smooth"});
+}
+
+async function setStatus(id,status){
+  const note=status==="approved"?"Wording approved in Messaging Bank.":null;
+  if(status==="approved"&&!confirm("Approve this exact wording? Future edits will automatically return it to Draft."))return;
+  if(status==="retired"&&!confirm("Retire this wording?"))return;
+  const {res,body}=await api("message-bank-status",{method:"POST",body:JSON.stringify({id,status,note})});
+  if(!res.ok){alert(body.message||body.error||"Could not update status.");return}
+  await loadBank();
+}
+
+(async function init(){
+  if(!sessionToken()){document.getElementById("loginGate").classList.remove("hidden");return}
+  document.getElementById("app").classList.remove("hidden");
+  await loadBank();
+  resetForm();
+})();
+</script>
+</body>
+</html>
