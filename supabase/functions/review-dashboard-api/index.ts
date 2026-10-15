@@ -329,6 +329,60 @@ async function fieldReportsData(supabase: ReturnType<typeof admin>) {
   }));
 }
 
+async function messagingBankData(supabase: ReturnType<typeof admin>) {
+  const [
+    { data: pillars, error: pillarsError },
+    { data: items, error: itemsError },
+  ] = await Promise.all([
+    supabase
+      .from("message_pillars")
+      .select("id,slug,name,description,sort_order,active")
+      .eq("active", true)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("message_bank_items")
+      .select(
+        "id,internal_label,category,pillar_id,exact_text,caption_exact,attribution,claim_type,verification_status,source_url,source_reference,source_notes,template_key,image_guidance,status,wording_locked,created_by,reviewed_by,reviewed_at,notes,created_at,updated_at",
+      )
+      .order("updated_at", { ascending: false })
+      .limit(200),
+  ]);
+
+  if (pillarsError) throw pillarsError;
+  if (itemsError) throw itemsError;
+
+  const itemIds = (items || []).map((item) => item.id);
+  const eventsByItem = new Map<string, any[]>();
+
+  if (itemIds.length) {
+    const { data: events, error: eventsError } = await supabase
+      .from("message_bank_events")
+      .select(
+        "id,message_bank_item_id,event_type,actor,note,created_at",
+      )
+      .in("message_bank_item_id", itemIds)
+      .order("created_at", { ascending: false });
+
+    if (eventsError) throw eventsError;
+
+    for (const event of events || []) {
+      const list = eventsByItem.get(event.message_bank_item_id) || [];
+      if (list.length < 5) {
+        list.push(event);
+        eventsByItem.set(event.message_bank_item_id, list);
+      }
+    }
+  }
+
+  return {
+    pillars: pillars || [],
+    items: (items || []).map((item) => ({
+      ...item,
+      events: eventsByItem.get(item.id) || [],
+    })),
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: cors(req) });
@@ -733,6 +787,141 @@ Deno.serve(async (req: Request) => {
       evidence,
       photographer_drive_url: driveUrl,
     });
+  }
+
+  if (req.method === "GET" && action === "messaging-bank") {
+    try {
+      return json(req, 200, await messagingBankData(supabase));
+    } catch (error) {
+      return json(req, 500, {
+        error: "messaging_bank_load_failed",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  if (req.method === "POST" && action === "message-bank-item") {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return json(req, 400, { error: "invalid_json" });
+    }
+
+    const { data: itemId, error } = await supabase.rpc(
+      "create_message_bank_item",
+      {
+        p_internal_label: body.internal_label ?? null,
+        p_category: body.category ?? "other",
+        p_pillar_id: body.pillar_id ?? null,
+        p_exact_text: body.exact_text ?? null,
+        p_caption_exact: body.caption_exact ?? null,
+        p_attribution: body.attribution ?? null,
+        p_claim_type: body.claim_type ?? "opinion",
+        p_verification_status: body.verification_status ?? "not_required",
+        p_source_url: body.source_url ?? null,
+        p_source_reference: body.source_reference ?? null,
+        p_source_notes: body.source_notes ?? null,
+        p_template_key: body.template_key ?? null,
+        p_image_guidance: body.image_guidance ?? null,
+        p_notes: body.notes ?? null,
+        p_actor: session.actor,
+      },
+    );
+
+    if (error) {
+      return json(req, 400, {
+        error: "message_bank_create_failed",
+        message: error.message,
+      });
+    }
+
+    return json(req, 201, {
+      ok: true,
+      message_bank_item_id: itemId,
+      status: "draft",
+    });
+  }
+
+  if (req.method === "POST" && action === "message-bank-item-update") {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return json(req, 400, { error: "invalid_json" });
+    }
+
+    if (!body?.id) {
+      return json(req, 400, { error: "message_bank_item_id_required" });
+    }
+
+    const { error } = await supabase.rpc(
+      "update_message_bank_item",
+      {
+        p_item_id: body.id,
+        p_internal_label: body.internal_label ?? null,
+        p_category: body.category ?? "other",
+        p_pillar_id: body.pillar_id ?? null,
+        p_exact_text: body.exact_text ?? null,
+        p_caption_exact: body.caption_exact ?? null,
+        p_attribution: body.attribution ?? null,
+        p_claim_type: body.claim_type ?? "opinion",
+        p_verification_status: body.verification_status ?? "not_required",
+        p_source_url: body.source_url ?? null,
+        p_source_reference: body.source_reference ?? null,
+        p_source_notes: body.source_notes ?? null,
+        p_template_key: body.template_key ?? null,
+        p_image_guidance: body.image_guidance ?? null,
+        p_notes: body.notes ?? null,
+        p_actor: session.actor,
+      },
+    );
+
+    if (error) {
+      return json(req, 400, {
+        error: "message_bank_update_failed",
+        message: error.message,
+      });
+    }
+
+    return json(req, 200, { ok: true });
+  }
+
+  if (req.method === "POST" && action === "message-bank-status") {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return json(req, 400, { error: "invalid_json" });
+    }
+
+    if (
+      !body?.id ||
+      !["draft", "review", "approved", "paused", "retired"].includes(
+        body?.status,
+      )
+    ) {
+      return json(req, 400, { error: "invalid_message_bank_status_request" });
+    }
+
+    const { error } = await supabase.rpc(
+      "set_message_bank_status",
+      {
+        p_item_id: body.id,
+        p_status: body.status,
+        p_note: body.note ?? null,
+        p_actor: session.actor,
+      },
+    );
+
+    if (error) {
+      return json(req, 400, {
+        error: "message_bank_status_failed",
+        message: error.message,
+      });
+    }
+
+    return json(req, 200, { ok: true, status: body.status });
   }
 
   if (req.method === "POST" && action === "field-report-issue-status") {
