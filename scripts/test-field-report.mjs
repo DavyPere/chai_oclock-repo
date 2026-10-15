@@ -14,6 +14,8 @@ const sessionHash = crypto.createHash("sha256").update(rawSession).digest("hex")
 let sessionId = null;
 let reportId = null;
 let packageId = null;
+let uploadedAssetId = null;
+let uploadedStoragePath = null;
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -35,6 +37,39 @@ async function call(action, method = "GET", body = null) {
   return json;
 }
 
+async function uploadFixturePhoto(fieldReportId) {
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2YQAAAABJRU5ErkJggg==",
+    "base64"
+  );
+  const form = new FormData();
+  form.append("field_report_id", fieldReportId);
+  form.append(
+    "file",
+    new File([png], "field-report-test.png", { type: "image/png" }),
+    "field-report-test.png"
+  );
+
+  const res = await fetch(
+    `${url}/functions/v1/review-dashboard-api?action=field-report-photo-upload`,
+    {
+      method: "POST",
+      headers: {
+        "x-chai-dashboard-session": rawSession,
+      },
+      body: form,
+    }
+  );
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(
+      `field-report-photo-upload failed: ${res.status} ${JSON.stringify(body)}`
+    );
+  }
+  return body;
+}
+
 try {
   const { data: session, error: sessionError } = await supabase
     .from("dashboard_sessions")
@@ -50,6 +85,8 @@ try {
   if (sessionError) throw sessionError;
   sessionId = session.id;
 
+  const driveUrl = `https://drive.google.com/drive/folders/field-report-test-${crypto.randomUUID()}`;
+
   const created = await call("field-report", "POST", {
     report_date: new Date().toISOString().slice(0, 10),
     activity_type: "Site visit",
@@ -59,6 +96,8 @@ try {
     constituency: "Test Constituency",
     participants: ["System test participant"],
     purpose: "Verify the field reporting workflow.",
+    photographer_name: "System Photographer",
+    photographer_drive_url: driveUrl,
     entries: [
       {
         entry_type: "observed",
@@ -109,12 +148,53 @@ try {
   reportId = created.field_report_id;
   assert(created.status === "saved", "Field report did not land in saved state.");
 
+  const upload = await uploadFixturePhoto(reportId);
+  uploadedAssetId = upload.evidence?.asset_id;
+  assert(uploadedAssetId, "Uploaded photo returned no asset id.");
+
+  const { data: uploadedAsset, error: uploadedAssetError } = await supabase
+    .from("assets")
+    .select("storage_bucket,storage_path,mime_type")
+    .eq("id", uploadedAssetId)
+    .single();
+
+  if (uploadedAssetError) throw uploadedAssetError;
+  uploadedStoragePath = uploadedAsset.storage_path;
+
+  assert(
+    uploadedAsset.storage_bucket === "source-media",
+    "Uploaded photo used the wrong storage bucket."
+  );
+  assert(
+    uploadedAsset.mime_type === "image/png",
+    "Uploaded photo MIME type was not preserved."
+  );
+
   const reports = await call("field-reports");
   const report = reports.items.find((item) => item.id === reportId);
   assert(report, "Created field report was not returned by dashboard API.");
   assert(report.entries.length === 4, "Field report entries were not preserved.");
   assert(report.issues.length === 1, "Field report issue was not preserved.");
-  assert(report.evidence.length === 1, "Field report evidence was not preserved.");
+  assert(
+    report.photographer_name === "System Photographer",
+    "Photographer attribution was not preserved."
+  );
+  assert(
+    report.photographer_drive_url === driveUrl,
+    "Photographer Google Drive URL was not preserved."
+  );
+
+  const driveEvidence = report.evidence.find((item) => item.source_url === driveUrl);
+  assert(driveEvidence, "Google Drive folder was not attached as report evidence.");
+
+  const uploadedEvidence = report.evidence.find(
+    (item) => item.asset_id === uploadedAssetId
+  );
+  assert(uploadedEvidence, "Uploaded photo was not attached as evidence.");
+  assert(
+    uploadedEvidence.asset?.signed_url,
+    "Uploaded photo did not receive a private signed preview URL."
+  );
 
   const issueId = report.issues[0].id;
   const issueUpdate = await call("field-report-issue-status", "POST", {
@@ -150,6 +230,17 @@ try {
     "Field report provenance was not attached."
   );
 
+  const { data: packageSources, error: sourceError } = await supabase
+    .from("content_package_sources")
+    .select("source_url,source_reference")
+    .eq("content_package_id", packageId);
+
+  if (sourceError) throw sourceError;
+  assert(
+    packageSources.some((source) => source.source_url === driveUrl),
+    "Photographer Drive folder did not flow into the review package sources."
+  );
+
   const { data: jobs, error: jobsError } = await supabase
     .from("render_jobs")
     .select("id")
@@ -159,13 +250,21 @@ try {
   assert(jobs.length === 0, "A render job existed before human approval.");
 
   console.log("Field reporting integration test passed.");
-  console.log("Save, evidence, issue tracking, packaging, provenance and approval gate verified.");
+  console.log(
+    "Drive handoff, direct photo upload, private preview, issue tracking, packaging and approval gate verified."
+  );
 } finally {
   if (reportId) {
     await supabase.from("field_reports").delete().eq("id", reportId);
   }
   if (packageId) {
     await supabase.from("content_packages").delete().eq("id", packageId);
+  }
+  if (uploadedStoragePath) {
+    await supabase.storage.from("source-media").remove([uploadedStoragePath]);
+  }
+  if (uploadedAssetId) {
+    await supabase.from("assets").delete().eq("id", uploadedAssetId);
   }
   if (sessionId) {
     await supabase.from("dashboard_sessions").delete().eq("id", sessionId);

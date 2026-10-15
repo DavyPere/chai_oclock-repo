@@ -227,3 +227,17 @@ The mobile screen is `docs/field-reports.html` and shares the same private brows
 Saving a field report does not create content. The explicit **Prepare for Approval** action deterministically creates a neutral review package from the recorded facts, labels facts by their reporting class, attaches field-report provenance, and leaves the package in `review`.
 
 Only the existing human approval action may create a Canva render job. Field Reporting does not publish content.
+
+
+### Photographer media handoff
+
+Field reports support two complementary photo workflows:
+
+1. **Google Drive full-shoot handoff** — the report can store the photographer's name and a `https://drive.google.com/` folder link. The folder is recorded as first-party evidence and flows into the later review package source trail.
+2. **Direct selected-photo upload** — JPEG, PNG and WebP images can be uploaded from the private field-report dashboard. Direct uploads are capped at 12 MB per photo and are stored privately in the existing `source-media` bucket.
+
+Direct photo uploads create both an `assets` record and a `field_report_evidence` record. Dashboard previews use short-lived signed URLs; the storage bucket remains private.
+
+Full-resolution sets, large batches and videos should stay in the photographer's Google Drive folder. Selected photos needed for reporting or Canva can be uploaded directly into Chai O'Clock.
+
+Saved field reports also include an **Add photos** control so media can be attached after the initial report is created.

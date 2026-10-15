@@ -25,7 +25,7 @@
     .meta{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}.pill{font-size:11px;text-transform:uppercase;letter-spacing:.06em;background:#efede7;border-radius:999px;padding:6px 9px;color:#59564f}.packaged{background:#dff2e4;color:#1d5b2b}.saved{background:#fff1c7;color:#6a4c00}
     .facts{margin-top:12px;border-top:1px solid #eeeae2}.fact{display:grid;grid-template-columns:92px 1fr;gap:8px;padding:9px 0;border-bottom:1px solid #f1eee8;font-size:13px}.fact strong{font-size:11px;text-transform:uppercase;color:#777269}.attribution{font-size:11px;color:#767168;margin-top:3px}
     .issue{padding:10px 0;border-bottom:1px solid #f1eee8}.issue:last-child{border-bottom:0}.issuehead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.issue select{width:auto;min-width:150px;padding:7px;font-size:12px}
-    .evidence{font-size:13px;padding:7px 0}.evidence a{color:#171717}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;color:#68645c;font-size:13px}
+    .evidence{font-size:13px;padding:7px 0}.evidence a{color:#171717}.photoGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}.photoGrid img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px;border:1px solid #e5e1d8}.uploadBox{border:1px dashed #cbc5ba;border-radius:14px;padding:12px;margin-top:12px;background:#faf9f6}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;color:#68645c;font-size:13px}
     .empty,.gate{text-align:center;background:#fff;border:1px solid #dfdbd2;border-radius:20px;padding:38px 22px}.gate h1{font-style:italic}.hidden{display:none!important}.success{color:#236033}.error{color:#8a2929}
     @media(max-width:620px){.grid2,.grid3{grid-template-columns:1fr}.issuehead{display:block}.issue select{width:100%;margin-top:8px}.fact{grid-template-columns:78px 1fr}}
   </style>
@@ -78,6 +78,18 @@
 
       <label>Why were you there?</label>
       <textarea id="purpose" placeholder="Purpose of the visit or activity"></textarea>
+
+      <div class="section">
+        <h3>Photographer media handoff</h3>
+        <p class="hint">The photographer can share the full shoot through a Google Drive folder. Add that folder here. You can also upload selected photos directly into Chai O'Clock.</p>
+        <div class="grid2">
+          <div><label>Photographer name</label><input id="photographerName" placeholder="Name or team"></div>
+          <div><label>Google Drive folder</label><input id="photographerDriveUrl" type="url" placeholder="https://drive.google.com/..."></div>
+        </div>
+        <label>Upload selected photos</label>
+        <input id="reportPhotos" type="file" multiple accept="image/jpeg,image/png,image/webp">
+        <p class="hint">JPEG, PNG or WebP. Up to 12 MB per photo. Larger/full-resolution sets should stay in Google Drive.</p>
+      </div>
 
       <div class="section">
         <h3>Observed</h3>
@@ -222,10 +234,15 @@ async function saveReport(){
     constituency:document.getElementById("constituency").value.trim()||null,
     participants:lines("participants"),
     purpose:document.getElementById("purpose").value.trim(),
+    photographer_name:document.getElementById("photographerName").value.trim()||null,
+    photographer_drive_url:document.getElementById("photographerDriveUrl").value.trim()||null,
     entries:collectEntries(),issues:collectIssues(),evidence:collectEvidence()
   };
   if(!payload.report_date||!payload.activity_title||!payload.location_name||!payload.purpose){
     message.className="hint error";message.textContent="Date, title, location and purpose are required.";return;
+  }
+  if(payload.photographer_drive_url && !/^https:\/\/drive\.google\.com\//i.test(payload.photographer_drive_url)){
+    message.className="hint error";message.textContent="The photographer folder must be a Google Drive link beginning with https://drive.google.com/.";return;
   }
   if(!payload.entries.length){
     message.className="hint error";message.textContent="Add at least one observed, reported, completed, committed or next-step item.";return;
@@ -235,8 +252,18 @@ async function saveReport(){
   button.disabled=false;
   if(res.status===401){location.href="./";return}
   if(!res.ok){message.className="hint error";message.textContent=body.message||body.error||"Save failed.";return}
-  message.className="hint success";message.textContent="Field report saved. You can now prepare it for approval from Saved Reports.";
-  setTimeout(()=>switchTab("reports"),700);
+  const photos=[...document.getElementById("reportPhotos").files];
+  let uploaded=0,failed=0;
+  if(photos.length){
+    message.className="hint";message.textContent="Field report saved. Uploading "+photos.length+" photo"+(photos.length===1?"":"s")+"…";
+    const result=await uploadFiles(body.field_report_id,photos);
+    uploaded=result.uploaded;failed=result.failed;
+  }
+  message.className=failed?"hint error":"hint success";
+  message.textContent=failed
+    ? "Field report saved. "+uploaded+" photo(s) uploaded; "+failed+" failed. You can retry from Saved Reports."
+    : "Field report saved"+(uploaded?" with "+uploaded+" uploaded photo(s)":"")+". You can now prepare it for approval from Saved Reports.";
+  setTimeout(()=>switchTab("reports"),900);
 }
 
 function groupEntries(entries,type){return(entries||[]).filter(x=>x.entry_type===type)}
@@ -254,7 +281,8 @@ function issueHtml(issue){
 function evidenceHtml(e){
   const label=esc(e.title||e.source_reference||e.source_url||"Evidence");
   const main=e.source_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(e.source_url)+'">'+label+'</a>':label;
-  return '<div class="evidence">'+main+' <span class="pill">'+esc(e.evidence_type)+'</span> <span class="pill">'+esc(e.verification_status)+'</span>'+(e.notes?'<div class="hint">'+esc(e.notes)+'</div>':'')+'</div>';
+  const preview=e.asset?.signed_url?'<div class="photoGrid"><a target="_blank" rel="noopener noreferrer" href="'+esc(e.asset.signed_url)+'"><img src="'+esc(e.asset.signed_url)+'" alt="'+label+'"></a></div>':'';
+  return '<div class="evidence">'+main+' <span class="pill">'+esc(e.evidence_type)+'</span> <span class="pill">'+esc(e.verification_status)+'</span>'+(e.notes?'<div class="hint">'+esc(e.notes)+'</div>':'')+preview+'</div>';
 }
 function reportCard(r){
   const issues=(r.issues||[]).map(issueHtml).join("");
@@ -262,7 +290,11 @@ function reportCard(r){
   const action=r.content_package_id
     ? '<a class="small" href="./">Open Review Queue</a>'
     : '<button class="secondary" onclick="preparePackage(\''+r.id+'\',this)">Prepare for Approval</button>';
-  return '<article class="card"><div class="body"><div class="meta"><span class="pill '+esc(r.status)+'">'+esc(r.status)+'</span><span class="pill">'+esc(r.activity_type)+'</span><span class="pill">'+esc(r.report_date)+'</span></div><h2>'+esc(r.activity_title)+'</h2><div class="hint">'+esc(r.location_name)+(r.ward?' · '+esc(r.ward):'')+(r.constituency?' · '+esc(r.constituency):'')+'</div><h3>Purpose</h3><div>'+esc(r.purpose)+'</div><div class="facts">'+factsHtml(r)+'</div>'+(issues?'<h3>Issues & follow-up</h3>'+issues:'')+(evidence?'<h3>Evidence</h3>'+evidence:'')+'<div style="margin-top:16px">'+action+'</div></div></article>';
+  const drive=r.photographer_drive_url
+    ? '<div class="evidence"><strong>Photographer Drive:</strong> <a target="_blank" rel="noopener noreferrer" href="'+esc(r.photographer_drive_url)+'">Open folder</a>'+(r.photographer_name?' · '+esc(r.photographer_name):'')+'</div>'
+    : '';
+  const upload='<div class="uploadBox"><strong>Add photos</strong><div class="hint">JPEG, PNG or WebP · max 12 MB each</div><input id="more-photos-'+r.id+'" type="file" multiple accept="image/jpeg,image/png,image/webp"><button class="secondary" style="margin-top:8px" onclick="uploadMore(\''+r.id+'\',this)">Upload selected photos</button><div id="upload-status-'+r.id+'" class="hint"></div></div>';
+  return '<article class="card"><div class="body"><div class="meta"><span class="pill '+esc(r.status)+'">'+esc(r.status)+'</span><span class="pill">'+esc(r.activity_type)+'</span><span class="pill">'+esc(r.report_date)+'</span></div><h2>'+esc(r.activity_title)+'</h2><div class="hint">'+esc(r.location_name)+(r.ward?' · '+esc(r.ward):'')+(r.constituency?' · '+esc(r.constituency):'')+'</div><h3>Purpose</h3><div>'+esc(r.purpose)+'</div><div class="facts">'+factsHtml(r)+'</div>'+drive+(issues?'<h3>Issues & follow-up</h3>'+issues:'')+(evidence?'<h3>Evidence</h3>'+evidence:'')+upload+'<div style="margin-top:16px">'+action+'</div></div></article>';
 }
 async function loadReports(){
   document.getElementById("reportSummary").textContent="Loading…";
@@ -273,6 +305,47 @@ async function loadReports(){
   document.getElementById("reportSummary").textContent=items.length+" field report"+(items.length===1?"":"s");
   document.getElementById("reportList").innerHTML=items.length?items.map(reportCard).join(""):'<div class="empty"><h2>No field reports yet</h2><p>Your saved reports will appear here.</p></div>';
 }
+async function uploadOne(reportId,file){
+  if(file.size>12*1024*1024) return {ok:false,error:"too_large"};
+  if(!["image/jpeg","image/png","image/webp"].includes(file.type)) return {ok:false,error:"unsupported_type"};
+  const form=new FormData();
+  form.append("field_report_id",reportId);
+  form.append("file",file,file.name);
+  const res=await fetch(API+"?action=field-report-photo-upload",{
+    method:"POST",
+    headers:sessionToken()?{"x-chai-dashboard-session":sessionToken()}:{},
+    body:form,
+    cache:"no-store"
+  });
+  const body=await res.json().catch(()=>({}));
+  return {ok:res.ok,body,error:body.error||null};
+}
+async function uploadFiles(reportId,files,onProgress=null){
+  let uploaded=0,failed=0;
+  for(let i=0;i<files.length;i++){
+    if(onProgress)onProgress(i,files.length,files[i].name);
+    const result=await uploadOne(reportId,files[i]);
+    if(result.ok)uploaded++;else failed++;
+  }
+  return {uploaded,failed};
+}
+async function uploadMore(reportId,button){
+  const input=document.getElementById("more-photos-"+reportId);
+  const status=document.getElementById("upload-status-"+reportId);
+  const files=[...(input?.files||[])];
+  if(!files.length){status.className="hint error";status.textContent="Choose at least one photo.";return}
+  button.disabled=true;
+  const result=await uploadFiles(reportId,files,(i,total,name)=>{
+    status.className="hint";status.textContent="Uploading "+(i+1)+" of "+total+": "+name;
+  });
+  button.disabled=false;
+  status.className=result.failed?"hint error":"hint success";
+  status.textContent=result.failed
+    ? result.uploaded+" uploaded, "+result.failed+" failed."
+    : result.uploaded+" photo(s) uploaded.";
+  if(result.uploaded)await loadReports();
+}
+
 async function preparePackage(id,button){
   if(!confirm("Create a neutral review package from the recorded facts?"))return;
   button.disabled=true;button.textContent="Preparing…";
