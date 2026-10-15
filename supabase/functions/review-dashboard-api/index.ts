@@ -225,7 +225,7 @@ async function fieldReportsData(supabase: ReturnType<typeof admin>) {
   const { data: reports, error } = await supabase
     .from("field_reports")
     .select(
-      "id,report_date,activity_type,activity_title,location_name,ward,constituency,participants,purpose,status,submitted_by,content_package_id,created_at,updated_at",
+      "id,report_date,activity_type,activity_title,location_name,ward,constituency,participants,purpose,status,submitted_by,content_package_id,photographer_name,photographer_drive_url,created_at,updated_at",
     )
     .order("report_date", { ascending: false })
     .order("created_at", { ascending: false })
@@ -261,7 +261,7 @@ async function fieldReportsData(supabase: ReturnType<typeof admin>) {
       supabase
         .from("field_report_evidence")
         .select(
-          "id,field_report_id,evidence_type,title,source_url,source_reference,notes,verification_status,created_at",
+          "id,field_report_id,evidence_type,title,source_url,source_reference,asset_id,notes,verification_status,created_at",
         )
         .in("field_report_id", ids)
         .order("created_at", { ascending: true }),
@@ -288,11 +288,44 @@ async function fieldReportsData(supabase: ReturnType<typeof admin>) {
     }
   }
 
+  const evidenceAssetIds = [
+    ...new Set(
+      [...evidenceByReport.values()]
+        .flat()
+        .map((item) => item.asset_id)
+        .filter(Boolean),
+    ),
+  ];
+
+  const evidenceAssetById = new Map<string, any>();
+  if (evidenceAssetIds.length) {
+    const { data: assets, error: assetsError } = await supabase
+      .from("assets")
+      .select("id,storage_bucket,storage_path,mime_type")
+      .in("id", evidenceAssetIds);
+
+    if (assetsError) throw assetsError;
+
+    for (const asset of assets || []) {
+      const { data: signed } = await supabase.storage
+        .from(asset.storage_bucket)
+        .createSignedUrl(asset.storage_path, 60 * 15);
+
+      evidenceAssetById.set(asset.id, {
+        ...asset,
+        signed_url: signed?.signedUrl || null,
+      });
+    }
+  }
+
   return (reports || []).map((report) => ({
     ...report,
     entries: entriesByReport.get(report.id) || [],
     issues: issuesByReport.get(report.id) || [],
-    evidence: evidenceByReport.get(report.id) || [],
+    evidence: (evidenceByReport.get(report.id) || []).map((item) => ({
+      ...item,
+      asset: item.asset_id ? evidenceAssetById.get(item.asset_id) || null : null,
+    })),
   }));
 }
 
@@ -390,7 +423,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: reportId, error } = await supabase.rpc(
-      "create_field_report",
+      "create_field_report_v2",
       {
         p_report_date: body.report_date,
         p_activity_type: body.activity_type,
@@ -406,6 +439,8 @@ Deno.serve(async (req: Request) => {
         p_issues: Array.isArray(body.issues) ? body.issues : [],
         p_evidence: Array.isArray(body.evidence) ? body.evidence : [],
         p_submitted_by: session.actor,
+        p_photographer_name: body.photographer_name ?? null,
+        p_photographer_drive_url: body.photographer_drive_url ?? null,
       },
     );
 
@@ -455,6 +490,146 @@ Deno.serve(async (req: Request) => {
       content_package_id: packageId,
       status: "review",
     });
+  }
+
+  if (req.method === "POST" && action === "field-report-photo-upload") {
+    let form: FormData;
+    try {
+      form = await req.formData();
+    } catch {
+      return json(req, 400, { error: "invalid_multipart_form" });
+    }
+
+    const fieldReportId = String(form.get("field_report_id") || "").trim();
+    const upload = form.get("file");
+
+    if (!fieldReportId) {
+      return json(req, 400, { error: "field_report_id_required" });
+    }
+
+    if (!(upload instanceof File)) {
+      return json(req, 400, { error: "photo_file_required" });
+    }
+
+    const allowedMimeTypes = new Set([
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ]);
+
+    if (!allowedMimeTypes.has(upload.type)) {
+      return json(req, 400, {
+        error: "unsupported_photo_type",
+        allowed: [...allowedMimeTypes],
+      });
+    }
+
+    const maxBytes = 12 * 1024 * 1024;
+    if (upload.size < 1 || upload.size > maxBytes) {
+      return json(req, 400, {
+        error: "photo_size_invalid",
+        max_bytes: maxBytes,
+      });
+    }
+
+    const { data: report, error: reportError } = await supabase
+      .from("field_reports")
+      .select("id,report_date")
+      .eq("id", fieldReportId)
+      .maybeSingle();
+
+    if (reportError || !report) {
+      return json(req, 404, { error: "field_report_not_found" });
+    }
+
+    const extByMime: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/png": "png",
+      "image/webp": "webp",
+    };
+
+    const reportDate = String(report.report_date || new Date().toISOString().slice(0, 10));
+    const year = reportDate.slice(0, 4);
+    const month = reportDate.slice(5, 7);
+    const objectPath =
+      `field-reports/${year}/${month}/${fieldReportId}/${crypto.randomUUID()}.${extByMime[upload.type]}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("source-media")
+      .upload(objectPath, upload, {
+        contentType: upload.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      return json(req, 500, {
+        error: "photo_storage_upload_failed",
+        message: uploadError.message,
+      });
+    }
+
+    let assetId: string | null = null;
+
+    try {
+      const { data: asset, error: assetError } = await supabase
+        .from("assets")
+        .insert({
+          storage_bucket: "source-media",
+          storage_path: objectPath,
+          asset_type: "field_report_photo",
+          source: "field_report_upload",
+          mime_type: upload.type,
+          verification_status: "unverified",
+        })
+        .select("id")
+        .single();
+
+      if (assetError) throw assetError;
+      assetId = asset.id;
+
+      const title =
+        upload.name && upload.name.trim()
+          ? upload.name.trim().slice(0, 240)
+          : "Uploaded field photo";
+
+      const { data: evidence, error: evidenceError } = await supabase
+        .from("field_report_evidence")
+        .insert({
+          field_report_id: fieldReportId,
+          evidence_type: "photo",
+          title,
+          source_reference: `uploaded-photo:${assetId}`,
+          asset_id: assetId,
+          notes: "Direct upload from the private Chai O'Clock field reporting dashboard.",
+          verification_status: "unverified",
+        })
+        .select("id,asset_id,title,verification_status")
+        .single();
+
+      if (evidenceError) throw evidenceError;
+
+      const { data: signed } = await supabase.storage
+        .from("source-media")
+        .createSignedUrl(objectPath, 60 * 15);
+
+      return json(req, 201, {
+        ok: true,
+        evidence: {
+          ...evidence,
+          signed_url: signed?.signedUrl || null,
+        },
+      });
+    } catch (error) {
+      if (assetId) {
+        await supabase.from("assets").delete().eq("id", assetId);
+      }
+      await supabase.storage.from("source-media").remove([objectPath]);
+
+      return json(req, 500, {
+        error: "photo_evidence_attach_failed",
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   if (req.method === "POST" && action === "field-report-issue-status") {
