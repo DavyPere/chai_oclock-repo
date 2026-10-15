@@ -96,8 +96,6 @@ try {
     constituency: "Test Constituency",
     participants: ["System test participant"],
     purpose: "Verify the field reporting workflow.",
-    photographer_name: "System Photographer",
-    photographer_drive_url: driveUrl,
     entries: [
       {
         entry_type: "observed",
@@ -147,6 +145,16 @@ try {
 
   reportId = created.field_report_id;
   assert(created.status === "saved", "Field report did not land in saved state.");
+
+  const driveAttach = await call("field-report-drive-evidence", "POST", {
+    field_report_id: reportId,
+    drive_url: driveUrl,
+    photographer_name: "System Photographer",
+  });
+  assert(
+    driveAttach.photographer_drive_url === driveUrl,
+    "Saved-report Google Drive evidence action did not preserve the URL."
+  );
 
   const upload = await uploadFixturePhoto(reportId);
   uploadedAssetId = upload.evidence?.asset_id;
@@ -251,7 +259,7 @@ try {
 
   console.log("Field reporting integration test passed.");
   console.log(
-    "Drive handoff, direct photo upload, private preview, issue tracking, packaging and approval gate verified."
+    "Evidence-section Drive attachment, direct photo upload, private preview, issue tracking, packaging and approval gate verified."
   );
 } finally {
   if (reportId) {

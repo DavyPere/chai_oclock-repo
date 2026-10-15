@@ -635,6 +635,106 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  if (req.method === "POST" && action === "field-report-drive-evidence") {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return json(req, 400, { error: "invalid_json" });
+    }
+
+    const fieldReportId = String(body?.field_report_id || "").trim();
+    const driveUrl = String(body?.drive_url || "").trim();
+    const photographerName = String(body?.photographer_name || "").trim();
+
+    if (!fieldReportId) {
+      return json(req, 400, { error: "field_report_id_required" });
+    }
+
+    if (!/^https:\/\/drive\.google\.com\//i.test(driveUrl)) {
+      return json(req, 400, {
+        error: "invalid_google_drive_url",
+        message: "Google Drive evidence must begin with https://drive.google.com/",
+      });
+    }
+
+    const { data: report, error: reportError } = await supabase
+      .from("field_reports")
+      .select("id")
+      .eq("id", fieldReportId)
+      .maybeSingle();
+
+    if (reportError || !report) {
+      return json(req, 404, { error: "field_report_not_found" });
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from("field_report_evidence")
+      .select("id,source_url")
+      .eq("field_report_id", fieldReportId)
+      .eq("source_url", driveUrl)
+      .maybeSingle();
+
+    if (existingError) {
+      return json(req, 500, {
+        error: "drive_evidence_lookup_failed",
+        message: existingError.message,
+      });
+    }
+
+    let evidence = existing;
+
+    if (!evidence) {
+      const { data: inserted, error: insertError } = await supabase
+        .from("field_report_evidence")
+        .insert({
+          field_report_id: fieldReportId,
+          evidence_type: "photo",
+          title: photographerName
+            ? `${photographerName} — Google Drive folder`
+            : "Photographer Google Drive folder",
+          source_url: driveUrl,
+          notes: "Photographer media handoff folder attached from the Evidence section.",
+          verification_status: "unverified",
+        })
+        .select(
+          "id,field_report_id,evidence_type,title,source_url,source_reference,asset_id,notes,verification_status,created_at",
+        )
+        .single();
+
+      if (insertError) {
+        return json(req, 500, {
+          error: "drive_evidence_insert_failed",
+          message: insertError.message,
+        });
+      }
+
+      evidence = inserted;
+    }
+
+    const { error: updateError } = await supabase
+      .from("field_reports")
+      .update({
+        photographer_name: photographerName || null,
+        photographer_drive_url: driveUrl,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", fieldReportId);
+
+    if (updateError) {
+      return json(req, 500, {
+        error: "drive_evidence_report_update_failed",
+        message: updateError.message,
+      });
+    }
+
+    return json(req, 200, {
+      ok: true,
+      evidence,
+      photographer_drive_url: driveUrl,
+    });
+  }
+
   if (req.method === "POST" && action === "field-report-issue-status") {
     let body: any;
     try {

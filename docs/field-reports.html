@@ -80,18 +80,6 @@
       <textarea id="purpose" placeholder="Purpose of the visit or activity"></textarea>
 
       <div class="section">
-        <h3>Photographer media handoff</h3>
-        <p class="hint">The photographer can share the full shoot through a Google Drive folder. Add that folder here. You can also upload selected photos directly into Chai O'Clock.</p>
-        <div class="grid2">
-          <div><label>Photographer name</label><input id="photographerName" placeholder="Name or team"></div>
-          <div><label>Google Drive folder</label><input id="photographerDriveUrl" type="url" placeholder="https://drive.google.com/..."></div>
-        </div>
-        <label>Upload selected photos</label>
-        <input id="reportPhotos" type="file" multiple accept="image/jpeg,image/png,image/webp">
-        <p class="hint">JPEG, PNG or WebP. Up to 12 MB per photo. Larger/full-resolution sets should stay in Google Drive.</p>
-      </div>
-
-      <div class="section">
         <h3>Observed</h3>
         <p class="hint">Things you or the team directly saw. One fact per line.</p>
         <textarea id="observed" placeholder="e.g. Two classrooms had damaged windows"></textarea>
@@ -131,9 +119,30 @@
 
       <div class="section">
         <h3>Evidence</h3>
-        <p class="hint">Add a photo/video/document link, or a reference such as “Photos on team phone — 15 Oct”.</p>
-        <div id="evidence"></div>
-        <button class="secondary" type="button" onclick="addEvidence()">+ Add evidence</button>
+        <p class="hint">Attach the material that supports this report. Paste the photographer's Google Drive folder, upload selected photos, or add another evidence link/reference.</p>
+
+        <div class="uploadBox">
+          <strong>Google Drive media folder</strong>
+          <p class="hint">Paste the photographer's shared Drive folder for the full photo/video set.</p>
+          <div class="grid2">
+            <div><label>Photographer name</label><input id="photographerName" placeholder="Name or team"></div>
+            <div><label>Google Drive link</label><input id="photographerDriveUrl" type="url" placeholder="https://drive.google.com/..."></div>
+          </div>
+        </div>
+
+        <div class="uploadBox">
+          <strong>Upload selected photos</strong>
+          <p class="hint">Add the photos you want stored directly with the report.</p>
+          <input id="reportPhotos" type="file" multiple accept="image/jpeg,image/png,image/webp">
+          <p class="hint">JPEG, PNG or WebP · up to 12 MB per photo. Keep large/full-resolution sets and videos in Google Drive.</p>
+        </div>
+
+        <div class="uploadBox">
+          <strong>Other evidence</strong>
+          <p class="hint">Documents, letters, meeting notes, web links, or references such as “Photos on team phone — 15 Oct”.</p>
+          <div id="evidence"></div>
+          <button class="secondary" type="button" onclick="addEvidence()">+ Add other evidence</button>
+        </div>
       </div>
 
       <button id="saveButton" class="primary" onclick="saveReport()">Save Field Report</button>
@@ -290,11 +299,23 @@ function reportCard(r){
   const action=r.content_package_id
     ? '<a class="small" href="./">Open Review Queue</a>'
     : '<button class="secondary" onclick="preparePackage(\''+r.id+'\',this)">Prepare for Approval</button>';
-  const drive=r.photographer_drive_url
-    ? '<div class="evidence"><strong>Photographer Drive:</strong> <a target="_blank" rel="noopener noreferrer" href="'+esc(r.photographer_drive_url)+'">Open folder</a>'+(r.photographer_name?' · '+esc(r.photographer_name):'')+'</div>'
-    : '';
-  const upload='<div class="uploadBox"><strong>Add photos</strong><div class="hint">JPEG, PNG or WebP · max 12 MB each</div><input id="more-photos-'+r.id+'" type="file" multiple accept="image/jpeg,image/png,image/webp"><button class="secondary" style="margin-top:8px" onclick="uploadMore(\''+r.id+'\',this)">Upload selected photos</button><div id="upload-status-'+r.id+'" class="hint"></div></div>';
-  return '<article class="card"><div class="body"><div class="meta"><span class="pill '+esc(r.status)+'">'+esc(r.status)+'</span><span class="pill">'+esc(r.activity_type)+'</span><span class="pill">'+esc(r.report_date)+'</span></div><h2>'+esc(r.activity_title)+'</h2><div class="hint">'+esc(r.location_name)+(r.ward?' · '+esc(r.ward):'')+(r.constituency?' · '+esc(r.constituency):'')+'</div><h3>Purpose</h3><div>'+esc(r.purpose)+'</div><div class="facts">'+factsHtml(r)+'</div>'+drive+(issues?'<h3>Issues & follow-up</h3>'+issues:'')+(evidence?'<h3>Evidence</h3>'+evidence:'')+upload+'<div style="margin-top:16px">'+action+'</div></div></article>';
+  const currentDrive=r.photographer_drive_url
+    ? '<div class="hint">Current Drive folder: <a target="_blank" rel="noopener noreferrer" href="'+esc(r.photographer_drive_url)+'">Open folder</a>'+(r.photographer_name?' · '+esc(r.photographer_name):'')+'</div>'
+    : '<div class="hint">No Google Drive folder attached yet.</div>';
+  const evidenceActions=
+    '<div class="uploadBox"><strong>Add evidence</strong>'+
+      '<label>Photographer / media owner</label><input id="drive-name-'+r.id+'" value="'+esc(r.photographer_name||'')+'" placeholder="Name or team">'+
+      '<label>Google Drive link</label><input id="drive-url-'+r.id+'" type="url" value="'+esc(r.photographer_drive_url||'')+'" placeholder="https://drive.google.com/...">'+
+      currentDrive+
+      '<button class="secondary" style="margin-top:8px" onclick="attachDrive(\''+r.id+'\',this)">Save Google Drive link</button>'+
+      '<div id="drive-status-'+r.id+'" class="hint"></div>'+
+      '<label style="margin-top:16px">Upload selected photos</label>'+
+      '<input id="more-photos-'+r.id+'" type="file" multiple accept="image/jpeg,image/png,image/webp">'+
+      '<div class="hint">JPEG, PNG or WebP · max 12 MB each</div>'+
+      '<button class="secondary" style="margin-top:8px" onclick="uploadMore(\''+r.id+'\',this)">Upload selected photos</button>'+
+      '<div id="upload-status-'+r.id+'" class="hint"></div>'+
+    '</div>';
+  return '<article class="card"><div class="body"><div class="meta"><span class="pill '+esc(r.status)+'">'+esc(r.status)+'</span><span class="pill">'+esc(r.activity_type)+'</span><span class="pill">'+esc(r.report_date)+'</span></div><h2>'+esc(r.activity_title)+'</h2><div class="hint">'+esc(r.location_name)+(r.ward?' · '+esc(r.ward):'')+(r.constituency?' · '+esc(r.constituency):'')+'</div><h3>Purpose</h3><div>'+esc(r.purpose)+'</div><div class="facts">'+factsHtml(r)+'</div>'+(issues?'<h3>Issues & follow-up</h3>'+issues:'')+'<h3>Evidence</h3>'+(evidence||'<div class="hint">No evidence attached yet.</div>')+evidenceActions+'<div style="margin-top:16px">'+action+'</div></div></article>';
 }
 async function loadReports(){
   document.getElementById("reportSummary").textContent="Loading…";
@@ -329,6 +350,37 @@ async function uploadFiles(reportId,files,onProgress=null){
   }
   return {uploaded,failed};
 }
+async function attachDrive(reportId,button){
+  const url=document.getElementById("drive-url-"+reportId).value.trim();
+  const name=document.getElementById("drive-name-"+reportId).value.trim();
+  const status=document.getElementById("drive-status-"+reportId);
+  if(!/^https:\/\/drive\.google\.com\//i.test(url)){
+    status.className="hint error";
+    status.textContent="Paste a Google Drive link beginning with https://drive.google.com/.";
+    return;
+  }
+  button.disabled=true;
+  status.className="hint";
+  status.textContent="Saving Google Drive evidence…";
+  const {res,body}=await api("field-report-drive-evidence",{
+    method:"POST",
+    body:JSON.stringify({
+      field_report_id:reportId,
+      drive_url:url,
+      photographer_name:name||null
+    })
+  });
+  button.disabled=false;
+  if(!res.ok){
+    status.className="hint error";
+    status.textContent=body.message||body.error||"Could not save Google Drive link.";
+    return;
+  }
+  status.className="hint success";
+  status.textContent="Google Drive folder attached as evidence.";
+  await loadReports();
+}
+
 async function uploadMore(reportId,button){
   const input=document.getElementById("more-photos-"+reportId);
   const status=document.getElementById("upload-status-"+reportId);
