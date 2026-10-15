@@ -1,0 +1,28 @@
+name: Messaging Bank Integration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/test-messaging-bank.mjs"
+      - "docs/messaging-bank.html"
+      - "supabase/functions/review-dashboard-api/**"
+      - "supabase/migrations/**"
+      - ".github/workflows/messaging-bank-integration.yml"
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: https://jrdtelveihwusdtpgnks.supabase.co
+      SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - name: Verify Messaging Bank workflow
+        run: npm run test:messaging-bank
