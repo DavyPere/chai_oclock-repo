@@ -10,7 +10,8 @@
     "test:submit-http": "node scripts/test-submit-http.mjs",
     "test:research-editor": "node scripts/test-research-editor.mjs",
     "research:run": "node scripts/research-editor-worker.mjs",
-    "test:field-report": "node scripts/test-field-report.mjs"
+    "test:field-report": "node scripts/test-field-report.mjs",
+    "test:messaging-bank": "node scripts/test-messaging-bank.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
