@@ -289,3 +289,18 @@ Important controls:
 The private UI is `docs/messaging-bank.html` and shares the existing dashboard browser session.
 
 Messaging Bank v1 deliberately stops at approved registry content. It does not automatically create posters, render Canva designs, schedule posts, target audiences, or publish content. Any later design connection should copy user-approved wording exactly and retain the existing human review gate.
+
+
+### Manifesto presentation structure
+
+Approved manifesto wording can carry two neutral organization fields:
+
+- `manifesto_pair_key`: links exact English/Swahili counterparts such as `P1.1` or `P3.5`.
+- `presentation_type`: layout-fit classification only:
+  - `short_commitment`
+  - `standard_commitment`
+  - `extended_commitment`
+  - `named_initiative`
+  - `slogan`
+
+Presentation type is not a persuasion score, priority ranking, audience-targeting signal, or recommendation. It exists only so exact approved wording can be filtered and later placed into designs with enough text space without rewriting it.

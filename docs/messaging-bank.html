@@ -26,7 +26,7 @@
     .draft{background:#efede7}.review{background:#fff1c7;color:#6a4c00}.approved{background:#dff2e4;color:#1d5b2b}.paused{background:#e6edf8;color:#264b78}.retired{background:#eee;color:#666}
     .textBlock{white-space:pre-wrap;line-height:1.5;background:#faf9f6;border-radius:12px;padding:12px;margin:10px 0}.source{font-size:13px;padding:7px 0}.source a{color:#171717}
     .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.actions button{padding:9px 11px;font-size:13px}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;color:#68645c;font-size:13px}
-    .filters{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}.event{font-size:12px;color:#6d685f;padding:5px 0;border-top:1px solid #f1eee8}.empty,.gate{text-align:center;background:#fff;border:1px solid #dfdbd2;border-radius:20px;padding:38px 22px}
+    .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}.event{font-size:12px;color:#6d685f;padding:5px 0;border-top:1px solid #f1eee8}.empty,.gate{text-align:center;background:#fff;border:1px solid #dfdbd2;border-radius:20px;padding:38px 22px}
     .gate h1{font-style:italic}.hidden{display:none!important}.success{color:#236033}.error{color:#8a2929}
     @media(max-width:620px){.grid2,.grid3,.filters{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
   </style>
@@ -147,6 +147,14 @@
           <option value="sw">Swahili</option>
           <option value="mixed">Mixed</option>
           <option value="other">Other</option>
+        </select>
+        <select id="presentationFilter" onchange="renderBank()">
+          <option value="">All presentation types</option>
+          <option value="short_commitment">Short commitment</option>
+          <option value="standard_commitment">Standard commitment</option>
+          <option value="extended_commitment">Extended commitment</option>
+          <option value="named_initiative">Named initiative</option>
+          <option value="slogan">Slogan</option>
         </select>
       </div>
       <div id="bankList"></div>
@@ -278,7 +286,7 @@ function card(item){
   if(item.status!=="retired"&&item.status!=="paused")actions.push('<button class="danger" onclick="setStatus(\''+item.id+'\',\'retired\')">Retire</button>');
 
   return '<article class="card"><div class="body">'+
-    '<div class="meta"><span class="pill '+esc(item.status)+'">'+esc(item.status)+'</span><span class="pill">'+esc((item.language_code||"en").toUpperCase())+'</span><span class="pill">'+esc(item.category.replaceAll("_"," "))+'</span><span class="pill">'+esc(pillarName(item.pillar_id))+'</span><span class="pill">'+esc(item.claim_type.replaceAll("_"," "))+'</span>'+lock+'</div>'+
+    '<div class="meta"><span class="pill '+esc(item.status)+'">'+esc(item.status)+'</span><span class="pill">'+esc((item.language_code||"en").toUpperCase())+'</span>'+(item.manifesto_pair_key?'<span class="pill">'+esc(item.manifesto_pair_key)+'</span>':'')+(item.presentation_type?'<span class="pill">'+esc(item.presentation_type.replaceAll("_"," "))+'</span>':'')+'<span class="pill">'+esc(item.category.replaceAll("_"," "))+'</span><span class="pill">'+esc(pillarName(item.pillar_id))+'</span><span class="pill">'+esc(item.claim_type.replaceAll("_"," "))+'</span>'+lock+'</div>'+
     '<h2>'+esc(item.internal_label)+'</h2>'+
     '<div class="textBlock">'+esc(item.exact_text)+'</div>'+
     caption+attribution+source+
@@ -295,10 +303,12 @@ function renderBank(){
   const status=document.getElementById("statusFilter").value;
   const pillar=document.getElementById("pillarFilter").value;
   const language=document.getElementById("languageFilter").value;
+  const presentation=document.getElementById("presentationFilter").value;
   const filtered=items.filter(i=>
     (!status||i.status===status)&&
     (!pillar||i.pillar_id===pillar)&&
-    (!language||i.language_code===language)
+    (!language||i.language_code===language)&&
+    (!presentation||i.presentation_type===presentation)
   );
   document.getElementById("summary").textContent=filtered.length+" item"+(filtered.length===1?"":"s")+" shown · "+items.length+" total";
   document.getElementById("bankList").innerHTML=filtered.length?filtered.map(card).join(""):'<div class="empty"><h2>No matching wording</h2><p>Add a draft or change the filters.</p></div>';
