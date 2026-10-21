@@ -342,7 +342,7 @@ async function messagingBankData(supabase: ReturnType<typeof admin>) {
     supabase
       .from("message_bank_items")
       .select(
-        "id,internal_label,category,pillar_id,exact_text,caption_exact,attribution,claim_type,verification_status,source_url,source_reference,source_notes,template_key,image_guidance,status,wording_locked,language_code,created_by,reviewed_by,reviewed_at,notes,created_at,updated_at",
+        "id,internal_label,category,pillar_id,exact_text,caption_exact,attribution,claim_type,verification_status,source_url,source_reference,source_notes,template_key,image_guidance,status,wording_locked,language_code,presentation_type,manifesto_pair_key,created_by,reviewed_by,reviewed_at,notes,created_at,updated_at",
       )
       .order("updated_at", { ascending: false })
       .limit(200),
