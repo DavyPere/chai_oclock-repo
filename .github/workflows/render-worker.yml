@@ -37,6 +37,19 @@ jobs:
       - name: Render next approved package
         run: npm run render:one
 
+      - name: Process queued corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in {1..8}; do
+            echo "Correction worker pass $i"
+            curl -fsS -X POST "$SUPABASE_URL/functions/v1/process-correction-worker" \
+              -H "Authorization: Bearer $SUPABASE_SECRET_KEY" \
+              -H "Content-Type: application/json" \
+              --data '{}'
+            echo
+          done
+
       - name: Render queued creative previews
         shell: bash
         run: |
