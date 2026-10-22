@@ -54,6 +54,12 @@
     .publicGrid .card{margin-bottom:0}
     .publicBadge{background:#e7eef8;color:#284b73}
     .publicStatus{font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+    .progressTrack{height:10px;background:#ece8df;border-radius:999px;overflow:hidden;margin:10px 0 7px}
+    .progressFill{height:100%;background:#171717;border-radius:999px;transition:width .25s ease}
+    .progressMeta{display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#6c675f}
+    .correctionRequest{background:#fff6dc;border:1px solid #ead9a6;border-radius:12px;padding:13px;line-height:1.45;margin:12px 0}
+    .correctionRequest strong{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#745b12;margin-bottom:5px}
+    .correctionStage{font-weight:800;color:#25231f}
     @media(max-width:700px){.publicGrid{grid-template-columns:1fr}}
     .hidden{display:none!important}
     @media(max-width:520px){
@@ -100,6 +106,7 @@
   <section id="app" class="hidden">
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
       <button id="creativeTab" class="small" style="background:#171717;color:#fff" onclick="switchQueue('creatives')">Creatives <span id="creativeCount"></span></button>
+      <button id="correctionTab" class="small" onclick="switchQueue('corrections')">Corrections <span id="correctionCount"></span></button>
       <button id="packageTab" class="small" onclick="switchQueue('packages')">Content Packages <span id="packageCount"></span></button>
     </div>
     <div class="toolbar">
@@ -292,6 +299,7 @@ function scheduleCreativePoll() {
   clearTimeout(pollTimer);
   if (activeQueue !== "creatives" || hasCreativeDrafts()) return;
   scheduleCreativePoll();
+  refreshCorrectionCount();
 }
 
 function creativeCard(q) {
@@ -399,25 +407,120 @@ async function creativeDecision(id, decision) {
   }
 
   delete creativeDraftNotes[id];
-  await loadCreatives();
+  if (decision === "changes_requested") {
+    await switchQueue("corrections");
+  } else {
+    await loadCreatives();
+  }
 }
 
-function switchQueue(queue) {
+
+function correctionCard(job) {
+  const c = job.creative || {};
+  const image = job.media?.signed_url
+    ? '<img class="preview" src="'+esc(job.media.signed_url)+'" alt="Correction preview">'
+    : '';
+
+  const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+  const queueText = job.queue_position
+    ? 'Queue position '+job.queue_position+' of '+job.queue_total
+    : (job.claimed_by ? 'Assigned to '+esc(job.claimed_by) : 'In progress');
+
+  const error = job.last_error
+    ? '<div class="status errorText">'+esc(job.last_error)+'</div>'
+    : '';
+
+  const canva = c.canva_view_url
+    ? '<a class="link" target="_blank" rel="noopener noreferrer" href="'+esc(c.canva_view_url)+'">Open current Canva preview</a>'
+    : '';
+
+  return '<article class="card">'+image+
+    '<div class="body">'+
+      '<div class="meta">'+
+        queuePill(c.channel||"")+
+        queuePill(c.format||"")+
+        queuePill(job.status||"queued", job.status==="failed" ? "review" : "")+
+      '</div>'+
+      '<h2 class="creative-title">'+esc(c.headline||c.asset_id||"Correction")+'</h2>'+
+      '<div class="status">'+esc(c.asset_id||"")+' · '+esc(c.message_id||"")+'</div>'+
+      '<div class="correctionRequest"><strong>Requested change</strong>'+esc(job.requested_change||"")+'</div>'+
+      '<div class="correctionStage">'+esc(job.stage_label||job.status||"Queued")+'</div>'+
+      '<div class="progressTrack"><div class="progressFill" style="width:'+progress+'%"></div></div>'+
+      '<div class="progressMeta"><span>'+queueText+'</span><strong>'+progress+'%</strong></div>'+
+      '<div class="fields">'+
+        '<div class="field"><strong>Creative state</strong><span>'+esc(c.status||"")+'</span></div>'+
+        '<div class="field"><strong>Render state</strong><span>'+esc(c.preview_render_status||"")+'</span></div>'+
+        '<div class="field"><strong>Requested</strong><span>'+esc(job.requested_at ? new Date(job.requested_at).toLocaleString() : "")+'</span></div>'+
+      '</div>'+
+      error+canva+
+    '</div>'+
+  '</article>';
+}
+
+async function loadCorrections() {
+  clearTimeout(pollTimer);
+  const {res, body} = await creativeApi("corrections");
+
+  if (res.status === 401) {
+    show("loginGate");
+    return;
+  }
+
+  if (!res.ok) {
+    document.getElementById("summary").textContent = "Unable to load corrections";
+    document.getElementById("queue").innerHTML =
+      '<div class="empty errorText">'+esc(body.message || body.error || "Unable to load corrections")+'</div>';
+    return;
+  }
+
+  const items = body.items || [];
+  document.getElementById("correctionCount").textContent = items.length ? "("+items.length+")" : "";
+  document.getElementById("summary").textContent =
+    items.length+" correction"+(items.length===1?"":"s")+" in progress";
+  document.getElementById("queue").innerHTML = items.length
+    ? items.map(correctionCard).join("")
+    : '<div class="empty"><h2>No corrections in progress</h2><p>Requested changes will appear here with their queue position and progress.</p></div>';
+
+  if (items.some(x => !["completed","cancelled"].includes(x.status))) {
+    pollTimer = setTimeout(() => {
+      if (activeQueue === "corrections") loadCorrections();
+    }, 10000);
+  }
+}
+
+async function refreshCorrectionCount() {
+  if (!sessionToken()) return;
+  try {
+    const {res, body} = await creativeApi("corrections");
+    if (!res.ok) return;
+    const items = body.items || [];
+    const count = document.getElementById("correctionCount");
+    if (count) count.textContent = items.length ? "("+items.length+")" : "";
+  } catch {}
+}
+
+async function switchQueue(queue) {
   captureCreativeDrafts();
+  clearTimeout(pollTimer);
   activeQueue = queue;
   const creativeTab = document.getElementById("creativeTab");
+  const correctionTab = document.getElementById("correctionTab");
   const packageTab = document.getElementById("packageTab");
 
   creativeTab.style.background = queue === "creatives" ? "#171717" : "#e8e5dd";
   creativeTab.style.color = queue === "creatives" ? "#fff" : "#34312d";
+  correctionTab.style.background = queue === "corrections" ? "#171717" : "#e8e5dd";
+  correctionTab.style.color = queue === "corrections" ? "#fff" : "#34312d";
   packageTab.style.background = queue === "packages" ? "#171717" : "#e8e5dd";
   packageTab.style.color = queue === "packages" ? "#fff" : "#34312d";
 
-  reloadActive();
+  return reloadActive();
 }
 
 function reloadActive() {
-  return activeQueue === "creatives" ? loadCreatives() : loadQueue();
+  if (activeQueue === "creatives") return loadCreatives();
+  if (activeQueue === "corrections") return loadCorrections();
+  return loadQueue();
 }
 
 function renderStatus(p) {
@@ -530,6 +633,7 @@ async function startApp() {
   show("app");
   activeQueue = "creatives";
   await loadCreatives();
+  await refreshCorrectionCount();
 }
 
 (async function init() {
