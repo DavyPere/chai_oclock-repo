@@ -46,6 +46,14 @@
     .gate p{color:#69655e;line-height:1.5}
     .gate button{background:#171717;color:#fff;width:100%;margin-top:8px}
     .link{display:inline-block;margin-top:10px;color:#171717}
+    .publicIntro{margin:28px 0 14px}
+    .publicIntro h2{margin-bottom:6px}
+    .publicIntro p{color:#69655e;line-height:1.5;margin:0}
+    .publicGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .publicGrid .card{margin-bottom:0}
+    .publicBadge{background:#e7eef8;color:#284b73}
+    .publicStatus{font-size:11px;text-transform:uppercase;letter-spacing:.07em}
+    @media(max-width:700px){.publicGrid{grid-template-columns:1fr}}
     .hidden{display:none!important}
     @media(max-width:520px){
       h2{font-size:22px}
@@ -74,8 +82,17 @@
   <section id="loginGate" class="gate hidden">
     <h1>Chai O'Clock</h1>
     <h2>Creative Operations Portal</h2>
-    <p>This is the public entry point for Chai O'Clock. The internal creative review, evidence, and approval workspace remains protected and is available only on authorized browsers.</p>
+    <p>This is the public entry point for Chai O'Clock. Selected creative work is available below. Internal review, evidence, approval controls, and production notes remain protected.</p>
     <p style="font-size:13px;margin-top:18px">Authorized team members can open a current one-time setup link to connect this browser to the private workspace.</p>
+  </section>
+
+  <section id="publicGallery" class="hidden">
+    <div class="publicIntro">
+      <h2>Creative Gallery</h2>
+      <p>Selected creative work shared from the Chai O'Clock production system. Items marked Preview are still in the review workflow.</p>
+    </div>
+    <div id="publicCreativeSummary" class="toolbar"><span>Loading public creatives…</span></div>
+    <div id="publicCreativeGrid" class="publicGrid"></div>
   </section>
 
   <section id="app" class="hidden">
@@ -98,6 +115,7 @@
 <script>
 const API = "https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/review-dashboard-api";
 const CREATIVE_API = "https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/creative-review-api";
+const PUBLIC_CREATIVE_API = "https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/public-creatives";
 const STORAGE_KEY = "chai_oclock_review_session_v3";
 let pollTimer = null;
 let activeQueue = "creatives";
@@ -115,11 +133,17 @@ function sessionToken() {
 }
 
 function show(id) {
-  for (const el of ["setupGate","loginGate","app","appHeader"]) {
+  for (const el of ["setupGate","loginGate","app","appHeader","publicGallery"]) {
     document.getElementById(el).classList.add("hidden");
   }
   document.getElementById(id).classList.remove("hidden");
-  if (id === "app") document.getElementById("appHeader").classList.remove("hidden");
+  if (id === "app") {
+    document.getElementById("appHeader").classList.remove("hidden");
+  }
+  if (id === "loginGate") {
+    document.getElementById("publicGallery").classList.remove("hidden");
+    loadPublicCreatives();
+  }
 }
 
 async function api(action, options = {}) {
@@ -159,6 +183,53 @@ async function creativeApi(action, options = {}) {
   const body = await res.json().catch(() => ({}));
   if (res.status === 401) localStorage.removeItem(STORAGE_KEY);
   return {res, body};
+}
+
+function publicCreativeCard(c) {
+  const image = c.media?.signed_url
+    ? '<img class="preview" src="'+esc(c.media.signed_url)+'" alt="Creative preview">'
+    : '';
+
+  const statusTone = c.public_status === 'preview' ? 'review' : 'approved';
+  const script = c.script_text
+    ? '<div class="fields"><div class="field"><strong>Script</strong><span style="white-space:pre-wrap">'+esc(c.script_text)+'</span></div></div>'
+    : '';
+
+  return '<article class="card">'+image+
+    '<div class="body">'+
+      '<div class="meta">'+
+        '<span class="pill publicBadge">Creative</span>'+
+        '<span class="pill">'+esc(c.channel||'')+'</span>'+
+        '<span class="pill">'+esc(c.format||'')+'</span>'+
+        '<span class="pill '+statusTone+'">'+esc(c.public_status||'preview')+'</span>'+
+      '</div>'+
+      '<h2>'+esc(c.headline||'Untitled creative')+'</h2>'+
+      (c.graphic_text ? '<div class="poster" style="font-weight:700">'+esc(c.graphic_text)+'</div>' : '')+
+      '<div class="caption">'+esc(c.caption||'')+'</div>'+
+      script+
+    '</div>'+
+  '</article>';
+}
+
+async function loadPublicCreatives() {
+  const grid = document.getElementById("publicCreativeGrid");
+  const summary = document.getElementById("publicCreativeSummary");
+  if (!grid || !summary) return;
+
+  try {
+    const res = await fetch(PUBLIC_CREATIVE_API, {cache:"no-store"});
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.message || body.error || "Unable to load public creatives");
+
+    const items = body.items || [];
+    summary.innerHTML = '<span>'+items.length+' selected creative'+(items.length===1?'':'s')+'</span>';
+    grid.innerHTML = items.length
+      ? items.map(publicCreativeCard).join("")
+      : '<div class="empty" style="grid-column:1/-1"><h2>No public creatives yet</h2><p>Selected work will appear here when it is shared publicly.</p></div>';
+  } catch (err) {
+    summary.innerHTML = '<span class="errorText">Unable to load public creatives</span>';
+    grid.innerHTML = '<div class="empty errorText" style="grid-column:1/-1">'+esc(err.message || err)+'</div>';
+  }
 }
 
 async function authorizeBrowser() {
