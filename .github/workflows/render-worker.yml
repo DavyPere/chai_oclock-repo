@@ -49,3 +49,4 @@ jobs:
               --data '{}'
             echo
           done
+\n# Manual test trigger: one Canva render\n
