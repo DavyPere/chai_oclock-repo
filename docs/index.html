@@ -78,12 +78,16 @@
   </section>
 
   <section id="app" class="hidden">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <button id="creativeTab" class="small" style="background:#171717;color:#fff" onclick="switchQueue('creatives')">Creatives <span id="creativeCount"></span></button>
+      <button id="packageTab" class="small" onclick="switchQueue('packages')">Content Packages <span id="packageCount"></span></button>
+    </div>
     <div class="toolbar">
       <span id="summary">Loading…</span>
       <div style="display:flex;gap:8px;align-items:center">
         <a class="small" href="./field-reports.html" style="text-decoration:none;color:#34312d">Field Reports</a>
         <a class="small" href="./messaging-bank.html" style="text-decoration:none;color:#34312d">Messaging Bank</a>
-        <button class="small" onclick="loadQueue()">Refresh</button>
+        <button class="small" onclick="reloadActive()">Refresh</button>
       </div>
     </div>
     <div id="queue"></div>
@@ -92,8 +96,10 @@
 
 <script>
 const API = "https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/review-dashboard-api";
+const CREATIVE_API = "https://jrdtelveihwusdtpgnks.supabase.co/functions/v1/creative-review-api";
 const STORAGE_KEY = "chai_oclock_review_session_v3";
 let pollTimer = null;
+let activeQueue = "creatives";
 
 const esc = (s = "") => String(s).replace(/[&<>"']/g, c => ({
   "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
@@ -135,6 +141,25 @@ async function api(action, options = {}) {
   return {res, body};
 }
 
+async function creativeApi(action, options = {}) {
+  const headers = {
+    ...(options.body ? {"content-type":"application/json"} : {}),
+    ...(sessionToken() ? {"x-chai-dashboard-session":sessionToken()} : {}),
+    ...(options.headers || {})
+  };
+  const suffix = action === "queue"
+    ? "?action=queue&status=" + encodeURIComponent(options.status || "pending")
+    : "?action=" + encodeURIComponent(action);
+  const res = await fetch(CREATIVE_API + suffix, {
+    ...options,
+    headers,
+    cache:"no-store"
+  });
+  const body = await res.json().catch(() => ({}));
+  if (res.status === 401) localStorage.removeItem(STORAGE_KEY);
+  return {res, body};
+}
+
 async function authorizeBrowser() {
   const token = setupTokenFromUrl();
   const button = document.getElementById("setupButton");
@@ -160,6 +185,138 @@ async function authorizeBrowser() {
   localStorage.setItem(STORAGE_KEY, body.session_token);
   history.replaceState({}, "", location.pathname);
   await startApp();
+}
+
+function queuePill(text, tone="") {
+  return '<span class="pill '+tone+'">'+esc(text)+'</span>';
+}
+
+function gateTone(v) {
+  if (["passed","verified","not_required"].includes(v)) return "approved";
+  if (["failed","rejected","missing"].includes(v)) return "review";
+  return "";
+}
+
+function creativeCard(q) {
+  const c = q.creative || {};
+  const m = q.message || {};
+  const image = q.media?.signed_url
+    ? '<img class="preview" src="'+esc(q.media.signed_url)+'" alt="Creative media preview">'
+    : "";
+
+  const source = [
+    m.source_reference ? '<div><strong>Source:</strong> '+esc(m.source_reference)+'</div>' : "",
+    m.exact_text ? '<div><strong>Approved wording:</strong> '+esc(m.exact_text)+'</div>' : "",
+    m.claim_type ? '<div><strong>Claim type:</strong> '+esc(m.claim_type.replaceAll("_"," "))+'</div>' : ""
+  ].join("");
+
+  const script = c.script_text
+    ? '<div class="fields"><div class="field"><strong>Script</strong><span style="white-space:pre-wrap">'+esc(c.script_text)+'</span></div></div>'
+    : "";
+
+  const note = '<div class="body" style="padding-top:0"><textarea class="note" id="creative-note-'+q.id+'" rows="2" placeholder="Describe requested changes, or add an optional rejection note"></textarea></div>';
+
+  const actions = q.status === "pending"
+    ? '<div class="actions" style="flex-wrap:wrap"><button class="reject" onclick="creativeDecision(\''+q.id+'\',\'rejected\')">Reject</button><button class="small" style="flex:1;background:#f1e7c9;color:#654b0a" onclick="creativeDecision(\''+q.id+'\',\'changes_requested\')">Request Changes</button><button class="approve" onclick="creativeDecision(\''+q.id+'\',\'approved\')">Approve</button></div>'
+    : "";
+
+  return '<article class="card">'+image+
+    '<div class="body">'+
+      '<div class="meta">'+
+        queuePill(c.channel||"")+
+        queuePill(c.format||"")+
+        queuePill((c.language_code||"").toUpperCase())+
+        queuePill("claim "+(c.claim_check_status||"unknown"), gateTone(c.claim_check_status))+
+        queuePill("evidence "+(c.evidence_status||"unknown"), gateTone(c.evidence_status))+
+      '</div>'+
+      '<h2>'+esc(c.headline||"Untitled creative")+'</h2>'+
+      '<div class="status">'+esc(c.asset_id||"")+' · '+esc(c.message_id||"")+'</div>'+
+      (c.graphic_text ? '<div class="poster" style="font-weight:700;margin-top:14px">'+esc(c.graphic_text)+'</div>' : "")+
+      '<div class="caption">'+esc(c.caption||"")+'</div>'+
+      script+
+      '<div class="fields"><div class="field"><strong>Message</strong><span>'+esc(m.internal_label||c.message_id||"")+'</span></div>'+
+      '<div class="field"><strong>Evidence</strong><span>'+esc(c.evidence_status||"")+'</span></div>'+
+      '<div class="field"><strong>Claim check</strong><span>'+esc(c.claim_check_status||"")+'</span></div></div>'+
+      '<div class="source">'+source+'</div>'+
+    '</div>'+note+actions+
+  '</article>';
+}
+
+async function loadCreatives() {
+  clearTimeout(pollTimer);
+  const {res, body} = await creativeApi("queue", {status:"pending"});
+
+  if (res.status === 401) {
+    show("loginGate");
+    return;
+  }
+
+  if (!res.ok) {
+    document.getElementById("summary").textContent = "Unable to load";
+    document.getElementById("queue").innerHTML =
+      '<div class="empty errorText">'+esc(body.message || body.error || "Unable to load creative queue")+'</div>';
+    return;
+  }
+
+  const items = body.items || [];
+  document.getElementById("creativeCount").textContent = items.length ? "("+items.length+")" : "";
+  document.getElementById("summary").textContent =
+    items.length+" creative"+(items.length===1?"":"s")+" waiting for your decision";
+  document.getElementById("queue").innerHTML = items.length
+    ? items.map(creativeCard).join("")
+    : '<div class="empty"><h2>Nothing waiting</h2><p>Approval-ready creatives will appear here automatically.</p></div>';
+
+  pollTimer = setTimeout(() => {
+    if (activeQueue === "creatives") loadCreatives();
+  }, 12000);
+}
+
+async function creativeDecision(id, decision) {
+  const note = document.getElementById("creative-note-"+id)?.value?.trim() || "";
+  if (decision === "changes_requested" && !note) {
+    alert("Add the change you want before requesting changes.");
+    return;
+  }
+
+  const message =
+    decision === "approved" ? "Approve this creative?" :
+    decision === "changes_requested" ? "Send this creative back for changes?" :
+    "Reject this creative?";
+  if (!confirm(message)) return;
+
+  const {res, body} = await creativeApi("decision", {
+    method:"POST",
+    body:JSON.stringify({
+      approval_queue_id:id,
+      decision,
+      note,
+      edit_request: decision === "changes_requested" ? {instruction:note} : {}
+    })
+  });
+
+  if (!res.ok) {
+    alert(body.message || body.error || "Action failed");
+    return;
+  }
+
+  await loadCreatives();
+}
+
+function switchQueue(queue) {
+  activeQueue = queue;
+  const creativeTab = document.getElementById("creativeTab");
+  const packageTab = document.getElementById("packageTab");
+
+  creativeTab.style.background = queue === "creatives" ? "#171717" : "#e8e5dd";
+  creativeTab.style.color = queue === "creatives" ? "#fff" : "#34312d";
+  packageTab.style.background = queue === "packages" ? "#171717" : "#e8e5dd";
+  packageTab.style.color = queue === "packages" ? "#fff" : "#34312d";
+
+  reloadActive();
+}
+
+function reloadActive() {
+  return activeQueue === "creatives" ? loadCreatives() : loadQueue();
 }
 
 function renderStatus(p) {
@@ -229,6 +386,7 @@ async function loadQueue() {
   const items = body.items || [];
   const waiting = items.filter(x => x.status === "review").length;
   const approved = items.filter(x => x.status === "approved").length;
+  document.getElementById("packageCount").textContent = waiting ? "("+waiting+")" : "";
   document.getElementById("summary").textContent = waiting+" waiting · "+approved+" approved";
   document.getElementById("queue").innerHTML = items.length
     ? items.map(card).join("")
@@ -269,7 +427,8 @@ async function logout() {
 
 async function startApp() {
   show("app");
-  await loadQueue();
+  activeQueue = "creatives";
+  await loadCreatives();
 }
 
 (async function init() {
