@@ -298,8 +298,9 @@ function hasCreativeDrafts() {
 function scheduleCreativePoll() {
   clearTimeout(pollTimer);
   if (activeQueue !== "creatives" || hasCreativeDrafts()) return;
-  scheduleCreativePoll();
-  refreshCorrectionCount();
+  pollTimer = setTimeout(() => {
+    if (activeQueue === "creatives") loadCreatives();
+  }, 12000);
 }
 
 function creativeCard(q) {
@@ -373,10 +374,8 @@ async function loadCreatives() {
     ? items.map(creativeCard).join("")
     : '<div class="empty"><h2>Nothing waiting</h2><p>Approval-ready creatives will appear here automatically.</p></div>';
 
-  pollTimer = setTimeout(() => {
-    if (activeQueue === "creatives") loadCreatives();
-  }, 12000);
-}
+  scheduleCreativePoll();
+  refreshCorrectionCount();
 
 async function creativeDecision(id, decision) {
   const note = document.getElementById("creative-note-"+id)?.value?.trim() || "";
