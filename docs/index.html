@@ -376,6 +376,7 @@ async function loadCreatives() {
 
   scheduleCreativePoll();
   refreshCorrectionCount();
+}
 
 async function creativeDecision(id, decision) {
   const note = document.getElementById("creative-note-"+id)?.value?.trim() || "";
