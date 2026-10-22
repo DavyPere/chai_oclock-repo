@@ -29,7 +29,7 @@ function requiredText(payload, field, fallback = null) {
 
 try {
   if (!jobId) {
-    const { data, error } = await supabase.rpc("claim_next_render_job");
+    const { data, error } = await supabase.rpc("claim_next_content_package_render_job");
     if (error) throw error;
     jobId = data;
   }
