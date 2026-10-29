@@ -55,7 +55,7 @@
 
     <section id="newPanel" class="panel">
       <h2 id="formTitle">Add wording</h2>
-      <p class="hint">This page stores wording exactly as entered. It does not generate or rewrite campaign language. Approved wording is locked; if it is edited later, it automatically returns to Draft.</p>
+      <p class="hint">This page stores wording exactly as entered. It does not generate or rewrite campaign language. Approved wording is locked; if it is edited later, it automatically returns to Draft. For approved DP Message Bank items, <strong>Create Hero Draft</strong> pairs the saved wording with the official fixed Hero image and sends the combination to your private review queue. No automatic publishing.</p>
       <input id="editId" type="hidden">
 
       <div class="grid2">
@@ -281,6 +281,9 @@ function card(item){
   ];
   if(item.status==="draft")actions.push('<button class="secondary" onclick="setStatus(\''+item.id+'\',\'review\')">Send to Review</button>');
   if(item.status==="review")actions.push('<button class="secondary" onclick="setStatus(\''+item.id+'\',\'approved\')">Approve wording</button>','<button class="secondary" onclick="setStatus(\''+item.id+'\',\'draft\')">Return to Draft</button>');
+  if(item.status==="approved" && String(item.message_id||"").startsWith("DP-")) {
+    actions.push('<button class="secondary" onclick="createHeroDraft(\''+item.id+'\')">Create Hero Draft</button>');
+  }
   if(item.status==="approved")actions.push('<button class="secondary" onclick="setStatus(\''+item.id+'\',\'paused\')">Pause</button>');
   if(item.status==="paused")actions.push('<button class="secondary" onclick="setStatus(\''+item.id+'\',\'approved\')">Re-approve</button>','<button class="danger" onclick="setStatus(\''+item.id+'\',\'retired\')">Retire</button>');
   if(item.status!=="retired"&&item.status!=="paused")actions.push('<button class="danger" onclick="setStatus(\''+item.id+'\',\'retired\')">Retire</button>');
@@ -344,6 +347,25 @@ function editItem(id){
   document.getElementById("saveButton").textContent="Save Changes";
   document.getElementById("cancelEditButton").classList.remove("hidden");
   claimTypeChanged();switchTab("new");scrollTo({top:0,behavior:"smooth"});
+}
+
+async function createHeroDraft(id){
+  const item=items.find(i=>i.id===id);
+  if(!item||item.status!=="approved"){alert("Only approved Message Bank wording can become a Hero draft.");return;}
+  if(!confirm("Create a private Hero-image draft using the approved wording from "+(item.message_id||item.internal_label)+"? The post will require approval before publication."))return;
+  const channel=(Array.isArray(item.eligible_channels)&&item.eligible_channels.includes("FB"))?"FB":
+    (Array.isArray(item.eligible_channels)?item.eligible_channels.find(v=>["WA","IG"].includes(v)):"FB")||"FB";
+  const {res,body}=await api("message-bank-hero-draft",{
+    method:"POST",body:JSON.stringify({message_bank_item_id:id,channel})
+  });
+  if(!res.ok){
+    alert(body.message||body.error||"Could not create Hero draft.");
+    return;
+  }
+  const d=body.draft||{};
+  alert((d.reused_existing?"Existing Hero draft found: ":"Hero draft created: ")+
+    (d.creative_asset_code||"Creative queued")+
+    ". Open the Review Queue to view the poster and caption.");
 }
 
 async function setStatus(id,status){
