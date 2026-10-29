@@ -323,8 +323,14 @@ function creativeCard(q) {
   const draftNote = creativeDraftNotes[q.id] || "";
   const note = '<div class="body" style="padding-top:0"><textarea class="note" id="creative-note-'+q.id+'" rows="3" placeholder="Describe requested changes, or add an optional rejection note" oninput="saveCreativeDraft(\''+q.id+'\',this.value)" onfocus="clearTimeout(pollTimer)">'+esc(draftNote)+'</textarea></div>';
 
+  const qaBlocked = c.content_scope === "neutral" && c.render_qa_status !== "passed";
+  const qaWarning = qaBlocked
+    ? '<div class="correctionRequest" role="alert"><strong>Preview failed visual QA — do not publish</strong>'+
+        esc(c.render_qa_note || "A corrected operations-only render is required before approval.")+
+      '</div>'
+    : "";
   const actions = q.status === "pending"
-    ? '<div class="actions" style="flex-wrap:wrap"><button class="reject" onclick="creativeDecision(\''+q.id+'\',\'rejected\')">Reject</button><button class="small" style="flex:1;background:#f1e7c9;color:#654b0a" onclick="creativeDecision(\''+q.id+'\',\'changes_requested\')">Request Changes</button><button class="approve" onclick="creativeDecision(\''+q.id+'\',\'approved\')">Approve</button></div>'
+    ? '<div class="actions" style="flex-wrap:wrap"><button class="reject" onclick="creativeDecision(\''+q.id+'\',\'rejected\')">Reject</button><button class="small" style="flex:1;background:#f1e7c9;color:#654b0a" onclick="creativeDecision(\''+q.id+'\',\'changes_requested\')">Request Changes</button><button class="approve" '+(qaBlocked?'disabled title="Render QA must pass before approval"':'')+' onclick="creativeDecision(\''+q.id+'\',\'approved\')">Approve</button></div>'
     : "";
 
   return '<article class="card">'+image+
@@ -333,6 +339,7 @@ function creativeCard(q) {
         queuePill(c.channel||"")+
         queuePill(c.format||"")+
         queuePill((c.language_code||"").toUpperCase())+
+        (qaBlocked ? queuePill("visual QA failed", "review") : "")+
         queuePill("claim "+(c.claim_check_status||"unknown"), gateTone(c.claim_check_status))+
         queuePill("evidence "+(c.evidence_status||"unknown"), gateTone(c.evidence_status))+
       '</div>'+
@@ -340,6 +347,7 @@ function creativeCard(q) {
       '<div class="status">'+esc(c.asset_id||"")+' · '+esc(c.message_id||"")+'</div>'+
       (c.graphic_text ? '<div class="poster" style="font-weight:700;margin-top:14px">'+esc(c.graphic_text)+'</div>' : "")+
       '<div class="caption">'+esc(c.caption||"")+'</div>'+
+      qaWarning+
       script+
       '<div class="fields"><div class="field"><strong>Message</strong><span>'+esc(m.internal_label||c.message_id||"")+'</span></div>'+
       '<div class="field"><strong>Evidence</strong><span>'+esc(c.evidence_status||"")+'</span></div>'+
